@@ -1,0 +1,134 @@
+.header {
+  border-bottom: 1px solid var(--ps-border);
+  background: linear-gradient(180deg, var(--ps-surface-1) 0%, var(--ps-surface-0) 100%);
+}
+
+.headerInner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--ps-space-6) var(--ps-space-4) var(--ps-space-5);
+}
+
+.eyebrow {
+  margin: 0 0 var(--ps-space-1);
+  color: var(--ps-instrument);
+  font-size: var(--ps-text-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lede {
+  color: var(--ps-text-muted);
+  font-size: var(--ps-text-lg);
+}
+
+.foundationNote {
+  color: var(--ps-text-subtle);
+  font-size: var(--ps-text-sm);
+  border-left: 3px solid var(--ps-accent);
+  padding-left: var(--ps-space-3);
+}
+
+.main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--ps-space-5) var(--ps-space-4) var(--ps-space-7);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--ps-space-6);
+  align-items: start;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ps-space-6);
+  min-width: 0;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ps-space-5);
+  align-items: flex-end;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ps-space-1);
+}
+
+.control label {
+  font-weight: 600;
+  font-size: var(--ps-text-sm);
+  color: var(--ps-text-muted);
+}
+
+.hint {
+  color: var(--ps-text-subtle);
+  font-size: var(--ps-text-sm);
+  margin: var(--ps-space-1) 0 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ps-space-3);
+  margin-top: var(--ps-space-4);
+}
+
+.diagnostics {
+  display: grid;
+  /* `minmax(0, max-content)` rather than bare `max-content`: the label column may
+     not push the grid wider than its container at narrow widths. */
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--ps-space-1) var(--ps-space-4);
+  margin: 0;
+}
+
+.diagnostics dt {
+  color: var(--ps-text-muted);
+  font-size: var(--ps-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.diagnostics dd {
+  margin: 0;
+  font-family: var(--ps-font-mono);
+  font-size: var(--ps-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  margin-top: var(--ps-space-6);
+  padding-top: var(--ps-space-4);
+  border-top: 1px solid var(--ps-border);
+  color: var(--ps-text-subtle);
+  font-size: var(--ps-text-xs);
+}
+
+/* Reflow to a single column well before the semantic UI becomes cramped. */
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .diagnostics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .diagnostics dd {
+    margin-bottom: var(--ps-space-2);
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

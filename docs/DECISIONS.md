@@ -241,3 +241,60 @@ Decisions considered and resolved rather than deferred:
 The last row is deliberately *not* an open owner decision for PS-01: it belongs to
 games-site/PS-HOST and does not change Planetary Survey's runtime architecture or
 learning loop.
+
+---
+
+## D-19 — Browser support is capability-declared, not version-enumerated
+
+**Decision:** support is defined by capability. WebGL2 plus ES2022 modules is the
+required baseline; WebGPU is an optional enhancement that no gameplay, science,
+accessibility, or completion requirement may depend on. No user-agent sniffing and
+no browser-version allowlist.
+
+**Rationale:** a version allowlist would have to be re-researched on every browser
+release and would still not answer the question that matters — does *this* machine
+render correctly. Capability declaration is testable, and it keeps school hardware
+on the `reduced` tier playable rather than excluded.
+
+**Consequence:** the renderer and accessibility suites run on chromium, firefox, and
+webkit. Where an engine genuinely behaves differently, the difference is either
+fixed in application code or recorded as an explicit non-claim — never silently
+tolerated.
+
+## D-20 — Dependencies are pinned exactly
+
+**Decision:** no caret or tilde ranges. `package.json` carries exact versions,
+`package-lock.json` is committed, and CI installs with `npm ci` only.
+
+**Rationale:** the correctness claims in this project are claims about *specific*
+renderer behaviour — whether Babylon's WebGPU support probe agrees with ours,
+whether `attachControl` adds a `tabindex`, what the eager and lazy chunks weigh. A
+floating range lets two environments run different renderers while both report
+"tests pass", which invalidates the evidence rather than merely risking it.
+
+**Consequence:** a dependency upgrade is a separately reviewed change that re-runs
+the whole gate including real-browser suites. It is never folded into feature work.
+
+## D-21 — The Node major is recorded in three places on purpose
+
+**Decision:** `.nvmrc`, `.node-version`, and `engines.node` all state `24.x`, and the
+Node major changes only in its own reviewed change.
+
+**Rationale:** different tools read different files. Stating it once would let a
+developer on an older runtime get a subtly different build instead of a clear
+failure.
+
+## D-22 — The capability probe may request a backend but never claims one
+
+**Decision:** the renderer is the sole authority on the backend in use. The
+capability probe's result is advisory ("requested"), the System check reports *in
+use* and *requested* separately, and the `high` quality tier requires a **confirmed**
+backend.
+
+**Rationale:** presence of `navigator.gpu` is not evidence of a usable WebGPU
+adapter. Treating it as one displayed "webgpu" while rendering on WebGL2, and
+escalated machines with no usable adapter to the most expensive presentation tier —
+a silent lie to the learner and a real performance defect on weak hardware.
+
+**Consequence:** both paths are pinned by real-browser regression tests
+(`tests/e2e/smoke.spec.ts`), one of which injects a present-but-unusable WebGPU API.

@@ -1,0 +1,48 @@
+.notice {
+  color: var(--ps-text-muted);
+  font-size: var(--ps-text-sm);
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 220px;
+  max-height: 60vh;
+  border: 1px solid var(--ps-border-strong);
+  border-radius: var(--ps-radius-lg);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #101822 0%, #06090d 70%);
+}
+
+/* The canvas is decorative: every fact it shows has a semantic equivalent. */
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: var(--ps-space-5);
+  text-align: center;
+  color: var(--ps-text);
+  background: rgb(6 9 13 / 88%);
+}
+
+[data-viewport-state="unavailable"] .overlay,
+[data-viewport-state="failed"] .overlay {
+  border-left: 4px solid var(--ps-caution);
+}
+
+.status {
+  margin-top: var(--ps-space-2);
+  color: var(--ps-text-muted);
+  font-size: var(--ps-text-sm);
+}

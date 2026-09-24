@@ -1,0 +1,27 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.vite/
+
+# Generated measurement output from `npm run report:bundle`. It is derived from
+# dist/ on every run and asserted there, so committing it would only add churn.
+reports/
+*.local
+*.log
+
+# Source/intermediate art is tracked by the provenance manifest, not by the
+# shipping build. Large in-progress DCC working files stay out of git.
+art/source/**/*.blend
+art/source/**/*.blend1
+art/source/**/*.psd
+art/intermediate/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
