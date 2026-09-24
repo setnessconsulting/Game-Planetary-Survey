@@ -34,6 +34,29 @@ this table exists so that "done" always has an artifact attached to it.
 
 ---
 
+## Outstanding human evidence
+
+### GAME-368 / PS-04 — independent science review is **not** delivered
+
+The GAME-368 row above requires independent science review. As of register version
+`ps-04.0.0` that evidence does **not** exist, and no automated check may stand in
+for it:
+
+| Required evidence | State |
+|---|---|
+| exact v1 bodies | delivered — 5 bodies, one curator per compared property |
+| sourced measurements | delivered — 11 values, every one cited to a named record |
+| mission/claim/evidence schemas | delivered — enforced by `validateMissionDefinition` |
+| golden fixtures | delivered — fixture and shipped-content digests pinned in test |
+| simplification register with learner text | delivered — 7 entries, four required elements each |
+| **independent science review** | **outstanding** — [`SCIENCE_REVIEW_PACKET.md`](SCIENCE_REVIEW_PACKET.md) |
+
+One value is shipped as `contested` (the Moon's surface relief, where two agency
+products disagree) and is excluded from every scored path. `catalogueIsScienceReviewed()`
+reports `false`, and it is what PS-11 and PS-14 read.
+
+---
+
 ## Cross-story rules
 
 ### Exact identity

@@ -40,7 +40,21 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: WORKERS,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
-  timeout: 60_000,
+  /**
+   * Wall-clock budget per test, deliberately separate from the assertion budget.
+   *
+   * A worker here is a full Chromium driving WebGL through SwiftShader while a
+   * multi-megabyte Babylon chunk loads and a frame loop runs at display rate, so a
+   * test's *duration* is a property of the machine and of how many sibling workers
+   * are competing — not of the product. 60s was tight enough that a quiet "passed in
+   * 2.9s" test timed out at four workers; the same suite then reported eight
+   * failures that were all timeouts and none of them defects.
+   *
+   * Long enough to stop measuring the machine, still short enough that a genuine
+   * hang fails the run. Assertions keep the tighter 15s budget below, so a real
+   * regression still fails fast rather than sitting here for two minutes.
+   */
+  timeout: 120_000,
   expect: { timeout: 15_000 },
 
   use: {

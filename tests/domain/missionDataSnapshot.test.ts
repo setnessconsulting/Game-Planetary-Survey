@@ -15,6 +15,7 @@ import {
   MIN_TARGET_MINUTES,
   MISSION_DATA_SNAPSHOT_SCHEMA_VERSION,
   buildMissionDataSnapshot,
+  observationKey,
   serializeMissionDataSnapshot,
   validateCatalog,
   validateMissionDefinition,
@@ -43,6 +44,7 @@ function codes(issues: readonly ValidationIssue[]): readonly string[] {
 function mission(overrides: Partial<MissionDefinition> = {}): MissionDefinition {
   return {
     id: "survey-1",
+    kind: "guided",
     title: "How wide is it?",
     brief: "Compare two worlds and decide which is larger.",
     scaleProperty: "meanRadius",
@@ -50,15 +52,68 @@ function mission(overrides: Partial<MissionDefinition> = {}): MissionDefinition 
     seedBase: 42,
     variantOf: null,
     targetMinutes: 12,
+    requiredObservations: [
+      {
+        bodyId: FIXTURE_ALPHA,
+        attributeId: "meanRadius",
+        instrumentId: "radiusSounder",
+        purpose: "Sweep the first world to get its width.",
+      },
+      {
+        bodyId: FIXTURE_BETA,
+        attributeId: "meanRadius",
+        instrumentId: "radiusSounder",
+        purpose: "Sweep the second world to get its width.",
+      },
+    ],
+    claimTarget: {
+      attributeId: "meanRadius",
+      basis: "magnitude",
+      subject: FIXTURE_ALPHA,
+      relation: "largerThan",
+      object: FIXTURE_BETA,
+      assertion: "The first world is wider than the second.",
+      requiredEvidence: [
+        observationKey(FIXTURE_ALPHA, "meanRadius"),
+        observationKey(FIXTURE_BETA, "meanRadius"),
+      ],
+    },
+    misconceptions: [],
+    hints: [{ order: 1, text: "Try the radius sounder on both worlds." }],
+    debriefFacts: [
+      {
+        id: "deb-1",
+        text: "You measured how wide each world is with the radius sounder.",
+        basis: "measured",
+        sourceBasisIds: [],
+      },
+    ],
+    scienceBoundaries: [
+      {
+        id: "bound-1",
+        statement: "This mission compares size only, and claims nothing about orbits.",
+      },
+    ],
     ...overrides,
   };
 }
 
+/**
+ * A catalogue that satisfies the v1 content scope: exactly one guided mission, at
+ * least two independent missions, and at least one replayable variant. The scope
+ * rules are checked by `validateCatalog`, so a fixture that ignores them would
+ * test a catalogue shape that can never ship.
+ */
 function catalog(overrides: Partial<MissionCatalog> = {}): MissionCatalog {
   return {
     registerVersion: FIXTURE_REGISTER_VERSION,
     bodies: DEV_FIXTURE_BODIES,
-    missions: [mission()],
+    missions: [
+      mission({ id: "survey-1", kind: "guided" }),
+      mission({ id: "survey-2", kind: "independent", seedBase: 43 }),
+      mission({ id: "survey-3", kind: "independent", seedBase: 44 }),
+      mission({ id: "survey-2-variant", kind: "independent", seedBase: 45, variantOf: "survey-2" }),
+    ],
     ...overrides,
   };
 }
@@ -300,8 +355,11 @@ describe("buildMissionDataSnapshot", () => {
       register: FIXTURE_SOURCE_REGISTER,
       seed: 7,
     });
+    // Re-pinned when the fixture grew to a v1-shaped catalogue (one guided
+    // mission, two independent missions, one variant): the digest covers the
+    // completion path and claim target, so a new mission is a new fact set.
     expect(snapshot.registerDigest).toBe("a29be4cf");
-    expect(snapshot.factsDigest).toBe("bf0f3071");
+    expect(snapshot.factsDigest).toBe("cef9e430");
   });
 
   it("cannot be changed by the renderer, the device, or the quality tier", () => {

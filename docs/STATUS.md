@@ -8,7 +8,7 @@ Canonical repository: `setnessconsulting/Game-Planetary-Survey` (`main`)
 
 ## Current phase
 
-**Executable foundation and source-of-truth layer complete. No playable build yet.**
+**Foundation, source-of-truth layer, and canonical content complete. No playable build yet.**
 
 The repository contains:
 
@@ -22,12 +22,21 @@ The repository contains:
 - the authoritative data layer: source register schema and policy, canonical
   units, formula-identified derived values, presentation scale/distortion
   metadata, deterministic mission-data snapshots, and validation that refuses
-  impossible or uncited values (**PS-03**, [`SOURCE_REGISTER.md`](SOURCE_REGISTER.md)).
+  impossible or uncited values (**PS-03**, [`SOURCE_REGISTER.md`](SOURCE_REGISTER.md));
+- the canonical v1 content: 5 worlds, 11 values each cited to a named register
+  record, 4 missions with completion paths and claim targets, and 7 licensed
+  simplifications with learner text (**PS-04**, register version `ps-04.0.0`).
 
-**There is still no playable build and no planetary value is shipped.** The body
-catalogue and the source register are deliberately empty until PS-04 authors them
-and takes them through independent science review, because an unreviewed citation
-would look like provenance without being provenance.
+**There is still no playable build.** No mission can be loaded: wiring the authored
+content into the workstation is PS-05 onward. The shell reports the distinction
+itself — content is *authored and sourced*, and *not yet science-reviewed* — rather
+than collapsing the two into one "ready" state.
+
+**No independent science review has occurred.** Every value is transcribed from an
+agency source and machine-checked for physical plausibility; none has been checked
+by a human against that source. [`SCIENCE_REVIEW_PACKET.md`](SCIENCE_REVIEW_PACKET.md)
+is the material prepared for that review, and
+`ACCEPTANCE_EVIDENCE_MATRIX.md` forbids automation from claiming it.
 
 ## Story state
 
@@ -36,9 +45,9 @@ would look like provenance without being provenance.
 | GAME-363 | PS-01 — contract freeze | **complete** | this `docs/` set |
 | GAME-364 | PS-02 — executable foundation | **complete** | verified gate, real-browser renderer smoke, CI |
 | GAME-365 | PS-HOST — games-site host contract | **complete** | preview and production pointers distinct; production unavailable |
-| GAME-366 | PS-03 — data/source registry | **complete** | build the source-of-truth layer; register content arrives in PS-04 |
+| GAME-366 | PS-03 — data/source registry | **complete** | source-of-truth layer |
 | GAME-367 | PS-DESIGN — Figma preproduction | ready | no open blocker; see constraint 3 |
-| GAME-368 | PS-04 — canonical bodies/missions | next | by PS-03 |
+| GAME-368 | PS-04 — canonical bodies/missions | **implemented; science review outstanding** | content authored and sourced; see constraint 1 |
 | GAME-369 | PS-05 — Babylon renderer foundation | blocked | by PS-03 + PS-DESIGN |
 | GAME-370 | PS-06 — instruments/evidence capture | blocked | by PS-04 + PS-05 |
 | GAME-371 | PS-07 — notebook/comparison/a11y equivalents | blocked | by PS-06 |
@@ -55,11 +64,15 @@ would look like provenance without being provenance.
 
 ## Open dependencies and known constraints
 
-1. **Source register content.** The register *mechanism* exists and is enforced,
-   but it holds no entries and no body ships a value. PS-03 delivered the layer;
-   PS-04 (`GAME-368`) authors the entries and the bodies, and owns independent
-   science review. Until then, no body value may be displayed in a shipping build,
-   and `validateBodiesAgainstRegister` fails the build if one appears uncited.
+1. **Independent science review of the v1 content.** The register now holds 11
+   entries with citations for every displayed value, and the mechanism that keeps
+   them complete is enforced. What is missing is human review: every entry is
+   `unreviewed` except one `contested`, every body carries `scienceReviewed: false`,
+   and D-14 delegated the v1 body/claim freeze to PS-04 *after* source-based
+   science review. PS-04 prepared
+   [`SCIENCE_REVIEW_PACKET.md`](SCIENCE_REVIEW_PACKET.md) for that review and did
+   not perform it. `catalogueIsScienceReviewed()` is what PS-11 and PS-14 read, and
+   it reports `false` today.
 
 2. **Dependency version pins.** Resolved and pinned exactly, with a committed
    lockfile (`DECISIONS.md` D-20). A dependency change is a separately reviewed
@@ -81,9 +94,17 @@ would look like provenance without being provenance.
 
 ## Recorded decisions
 
-PS-01 decisions are closed (`DECISIONS.md` D-01…D-18), and PS-02 and PS-03 added
-D-19…D-27. The outstanding-decision audit remains D-18: **no unresolved owner
-decision can materially change the runtime architecture or the v1 learning loop.**
+PS-01 decisions are closed (`DECISIONS.md` D-01…D-18); PS-02 and PS-03 added
+D-19…D-27; PS-04 added D-28…D-31. The outstanding-decision audit remains D-18: **no
+unresolved owner decision can materially change the runtime architecture or the v1
+learning loop.**
+
+D-28 was the one worth flagging. Learner-facing text is the first place in the
+product where a number is *derived* rather than cited, so no provenance gate can
+catch it being wrong. The response was to make content depend on the formula
+register and to recompute every quoted derived number in test — which means a
+hand-typed figure in a feedback sentence is now a build failure rather than a
+science finding.
 
 ## Explicit non-goals reminder
 

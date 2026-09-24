@@ -14,11 +14,11 @@ import { App } from "@/ui/App";
 import { LOOP_STEPS } from "@/ui/loopSteps";
 
 describe("App shell", () => {
-  it("renders the survey identity and the foundation disclosure", () => {
+  it("renders the survey identity and the provenance disclosure", () => {
     render(<App />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Planetary Survey");
     expect(screen.getByTestId("foundation-note").textContent).toContain(
-      "Canonical bodies and missions arrive with PS-04",
+      "Independent science review of that content is still outstanding",
     );
   });
 
@@ -52,9 +52,15 @@ describe("App shell", () => {
     expect(table.textContent).toContain("Source");
   });
 
-  it("states plainly that the catalogue is empty rather than inventing content", () => {
+  it("reports authored-and-sourced separately from science-reviewed", () => {
     render(<App />);
-    expect(screen.getByTestId("content-status").textContent).toContain("Catalogue empty");
+    // PS-04 authored the content, so "empty" is no longer the truth. What matters
+    // is that the shell does not upgrade "sourced" into "reviewed": every value is
+    // cited, and none of it has passed independent science review yet.
+    const status = screen.getByTestId("content-status").textContent ?? "";
+    expect(status).toContain("every value cited in the source register");
+    expect(status).toContain("Independent science review is outstanding");
+    expect(status).not.toContain("Independent science review is complete");
     expect(screen.getByTestId("briefing-empty-state").textContent).toContain(
       "an unsourced number is worse than no number",
     );

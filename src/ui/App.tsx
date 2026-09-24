@@ -6,10 +6,17 @@
  * Babylon owns the scene, camera, and frame loop. The only channel between them is
  * typed snapshots, intents, and events (docs/TECHNICAL_DESIGN.md §4).
  *
- * This is a FOUNDATION shell. It deliberately ships no planetary values: the
- * catalogue is empty until PS-04 authors and science-reviews it. What it does
- * prove is that the seams, the boundaries, the accessibility routes, and the
+ * PS-04 authored the catalogue: five worlds and four missions, every displayed
+ * value cited in the source register. This shell still does not *load* one —
+ * wiring the authored missions into the workstation is a later gate — so what it
+ * proves is that the seams, the boundaries, the accessibility routes, and the
  * honest failure paths are real.
+ *
+ * The shell reports two different things about that content, and the difference is
+ * deliberate. `catalogueIsPopulated()` says content exists; it is true.
+ * `catalogueIsScienceReviewed()` says a human signed the science off; it is false.
+ * Collapsing those into one "ready" flag would let a build that has sourced values
+ * look like a build that has reviewed ones.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,7 +28,12 @@ import {
   type QualityProfileId,
 } from "@/assets/qualityProfiles";
 import { createAudioService, type AudioService } from "@/audio";
-import { PLANETARY_BODIES, catalogueIsPopulated } from "@/content";
+import {
+  MISSIONS,
+  PLANETARY_BODIES,
+  catalogueIsPopulated,
+  catalogueIsScienceReviewed,
+} from "@/content";
 import { projectRenderSnapshot } from "@/domain/renderSnapshot";
 import {
   createBrowserProbe,
@@ -97,6 +109,7 @@ export function App() {
   );
   const loopStatus = useMemo(() => deriveLoopStatus(snapshot), [snapshot]);
   const populated = catalogueIsPopulated();
+  const scienceReviewed = catalogueIsScienceReviewed();
 
   // Announce domain outcomes; the live region is the single non-visual channel.
   useEffect(() => {
@@ -181,9 +194,11 @@ export function App() {
             back up. This is a survey, not a fact quiz.
           </p>
           <p className={styles.foundationNote} data-testid="foundation-note">
-            Foundation build (PS-02). The product, science, architecture, accessibility,
-            performance, and release contracts are frozen in <code>docs/</code>. Canonical
-            bodies and missions arrive with PS-04 after source-based science review.
+            Source-register build (PS-04). The product, science, architecture,
+            accessibility, performance, and release contracts are frozen in <code>docs/</code>,
+            and every planetary value is cited in the per-field source register. Independent
+            science review of that content is still outstanding, so it is shown as unreviewed
+            rather than presented as settled.
           </p>
         </div>
       </header>
@@ -239,11 +254,16 @@ export function App() {
               </div>
 
               <p className={styles.hint} data-testid="content-status">
-                {populated
-                  ? "Canonical content loaded."
-                  : "Catalogue empty: " +
+                {!populated
+                  ? "Catalogue empty: " +
                     PLANETARY_BODIES.length +
-                    " bodies, 0 missions. Nothing is measured with an unsourced value."}
+                    " bodies, " +
+                    MISSIONS.length +
+                    " missions. Nothing is measured with an unsourced value."
+                  : `${PLANETARY_BODIES.length} worlds and ${MISSIONS.length} missions are authored, every value cited in the source register. ` +
+                    (scienceReviewed
+                      ? "Independent science review is complete."
+                      : "Independent science review is outstanding.")}
               </p>
 
               <div className={styles.actions}>
@@ -259,9 +279,10 @@ export function App() {
                 </button>
               </div>
               <p className={styles.hint}>
-                The foundation briefing contains no scientific content. It exists so the
-                mission loop, the notebook, and the announcement path are exercisable
-                before PS-04 authors the real missions.
+                The foundation briefing contains no scientific content. The authored missions
+                are not loadable from this shell yet, so this briefing is what keeps the
+                mission loop, the notebook, and the announcement path exercisable in the
+                meantime.
               </p>
             </section>
 

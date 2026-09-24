@@ -247,14 +247,36 @@ test.describe("planetary survey shell", () => {
     ).toBe(true);
 
     // Behavioural proof, not just an attribute: tabbing must never land on it.
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    //
+    // The focus log is collected in the page, and read once at the end. Doing a
+    // round-trip per press instead made this test 25 browser round-trips against a
+    // live software-rasterized frame loop, which turned a 3-second test into a
+    // 60-second timeout whenever a sibling worker was rendering — a measurement of
+    // the machine rather than of the tab order.
+    await page.evaluate(() => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      (window as unknown as { __psFocusLog: (string | null)[] }).__psFocusLog = [];
+      document.addEventListener(
+        "focusin",
+        (event) => {
+          const log = (window as unknown as { __psFocusLog: (string | null)[] }).__psFocusLog;
+          log.push((event.target as Element | null)?.getAttribute("data-testid") ?? null);
+        },
+        { capture: true },
+      );
+    });
+
     for (let step = 0; step < 25; step += 1) {
       await page.keyboard.press("Tab");
-      const landedOnCanvas = await page.evaluate(
-        () => document.activeElement?.getAttribute("data-testid") === "renderer-canvas",
-      );
-      expect(landedOnCanvas, "Tab must never reach the decorative canvas").toBe(false);
     }
+
+    const focusLog = await page.evaluate(
+      () => (window as unknown as { __psFocusLog: (string | null)[] }).__psFocusLog,
+    );
+    expect(focusLog.length).toBeGreaterThan(0);
+    expect(focusLog, "Tab must never reach the decorative canvas").not.toContain(
+      "renderer-canvas",
+    );
   });
 
   test("degrades honestly when no 3D backend is available, and stays usable", async ({ page }) => {

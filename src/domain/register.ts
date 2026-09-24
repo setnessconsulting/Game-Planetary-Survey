@@ -23,6 +23,7 @@
 
 import { ATTRIBUTE_IDS, type AttributeId } from "./attributes";
 import type { BodyRecord } from "./bodies";
+import type { MissionCatalog } from "./catalog";
 import { canonicalJson, digestOf } from "./canonical";
 import {
   SOURCE_POLICY_VERSION,
@@ -289,6 +290,63 @@ export function validateBodiesAgainstRegister(
           code: "value-source-body-mismatch",
           subject,
           message: `Source "${record.id}" is registered for body "${record.bodyId}".`,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Validate that no mission requires a value whose authority is in dispute.
+ *
+ * This is the rule that makes `reviewStatus: "contested"` mean something. A
+ * contested value may sit in the register — recording a disagreement is better
+ * than hiding one — but it must not become a completion requirement, because a
+ * mission that grades a disputed number teaches a dispute as a fact.
+ */
+export function validateMissionsAgainstRegister(
+  catalog: MissionCatalog,
+  register: SourceRegister,
+): readonly ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const index = createRegisterIndex(register);
+
+  for (const mission of catalog.missions) {
+    for (const observation of mission.requiredObservations) {
+      const subject = `mission:${mission.id}:${observation.bodyId}.${observation.attributeId}`;
+      const body = catalog.bodies.find((candidate) => candidate.id === observation.bodyId);
+      const sourced = body?.attributes[observation.attributeId];
+      if (!sourced) {
+        issues.push({
+          severity: "error",
+          code: "value-without-register-entry",
+          subject,
+          message: "A required observation has no value on its target body.",
+        });
+        continue;
+      }
+
+      const record = index.byId.get(sourced.sourceId);
+      if (!record) {
+        issues.push({
+          severity: "error",
+          code: "value-without-register-entry",
+          subject,
+          message: `Required value cites "${sourced.sourceId}", which is not in the register.`,
+        });
+        continue;
+      }
+
+      if (record.reviewStatus === "contested") {
+        issues.push({
+          severity: "error",
+          code: "catalog-contested-value-required",
+          subject,
+          message:
+            `The mission requires a value marked contested (${record.reviewNote || "no note"}). ` +
+            "Resolve the dispute or take the value off the completion path.",
         });
       }
     }

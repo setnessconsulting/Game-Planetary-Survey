@@ -7,48 +7,30 @@
  * citation is not a network call: nothing in this file is ever fetched, and the
  * application ships it as data.
  *
- * ## Why the register is empty and versioned
- *
- * The register is deliberately **empty on purpose**, exactly as the body
- * catalogue is. GAME-364 forbids inventing production science content during
- * bootstrap, and the register it produces would be a set of *unreviewed* citations
- * to real authorities. That is worse than nothing: it would look sourced.
- *
- * PS-03 (GAME-366) builds the register — its schema, policy, validation,
- * freshness, and determinism, all in `src/domain/`. PS-04 (GAME-368) authors the
- * entries here, per field, and puts them through independent science review.
- * Between those two stories, `validateBodiesAgainstRegister` is the gate that
- * makes an uncited value impossible to ship: the moment a body carries a value
- * without an entry, the check fails loudly.
+ * The register entries themselves live in `./sourceRegister.ts`, next to the
+ * values and precision notes they describe. This module is the assembly point plus
+ * the presentation declarations, so importing `@/content` gives one place to read
+ * "what is this build's data, and where did it come from".
  */
 
 import type { PresentationScaleDeclaration } from "@/domain/presentation";
-import type { SourceRegister } from "@/domain/register";
-import { SOURCE_POLICY_VERSION } from "@/domain/sources";
 
-/**
- * Version of the register *content*.
- *
- * Recorded in the release manifest, so a shipped build names the exact set of
- * citations its values came from, and re-published only when that set changes.
- */
-export const SOURCE_REGISTER_VERSION = "ps-03-unpopulated";
-
-/** The register itself. Entries arrive in PS-04, each one science-reviewed. */
-export const SOURCE_REGISTER: SourceRegister = {
-  version: SOURCE_REGISTER_VERSION,
-  policyVersion: SOURCE_POLICY_VERSION,
-  retrievedOn: "2026-09-24",
-  entries: [],
-};
+export { SOURCE_REGISTER, SOURCE_REGISTER_VERSION, SOURCE_REGISTER_RETRIEVED_ON } from "./sourceRegister";
 
 /**
  * Declared scale/distortion metadata for rendered representations.
  *
- * Intentionally empty until PS-05 (GAME-369) gives the renderer representations
- * to declare. The contract they must satisfy — an explicit ratio, a licensed
- * source basis, a model boundary, and the exact learner-facing text — is already
- * enforced by `validatePresentationDeclarations`, so a distorted view cannot be
- * added without saying so.
+ * Still empty, and that is a statement rather than an omission: PS-05 (GAME-369)
+ * gives the renderer representations to declare, and until then there is no view
+ * whose distortion could be described. The contract a declaration must satisfy —
+ * an explicit ratio, a licensed source basis, a model boundary, and the exact
+ * learner-facing text — is enforced by `validatePresentationDeclarations`, and
+ * `validatePresentationsLicensed` additionally requires that the SIM id it cites
+ * exists in the simplification register with scope `presentation`.
+ *
+ * SIM-7 in `./simplifications.ts` already states the compression rule this
+ * declaration will implement. The two are deliberately separate: the
+ * simplification says *why* compressing is acceptable and *what the learner is
+ * told*; the declaration will say *which view* does it and by *how much*.
  */
 export const PRESENTATION_DECLARATIONS: readonly PresentationScaleDeclaration[] = [];

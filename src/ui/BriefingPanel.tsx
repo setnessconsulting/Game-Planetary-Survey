@@ -32,11 +32,12 @@ export function BriefingPanel({ missionId }: BriefingPanelProps) {
         </p>
       ) : (
         <p data-testid="briefing-empty-state">
-          No mission is loaded. Planetary Survey is in its foundation phase: the contract
-          that fixes the science, the architecture, and the release gates is complete, and
-          the canonical bodies and missions are authored in GAME-368 / PS-04 after
-          source-based science review. This build deliberately ships no planetary values,
-          because an unsourced number is worse than no number.
+          No mission is loaded. The canonical worlds and missions now exist and every
+          displayed value is cited in the per-field source register, but they are still
+          flagged unreviewed because no independent science review has happened yet, and
+          this shell does not load them until a later build. So the survey is still waiting
+          on its content rather than measuring with an unsourced number, because an
+          unsourced number is worse than no number.
         </p>
       )}
     </section>

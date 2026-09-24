@@ -30,7 +30,11 @@ function input(label: string, value: number, unit: DerivedInput["value"]["unit"]
 
 describe("the formula register", () => {
   it("names a formula and a unit for every derivation it permits", () => {
-    expect(Object.keys(DERIVED_FORMULAS).sort()).toEqual(["proportion", "relativeScale"]);
+    expect(Object.keys(DERIVED_FORMULAS).sort()).toEqual([
+      "proportion",
+      "relativeScale",
+      "relativeVolume",
+    ]);
     for (const formula of Object.values(DERIVED_FORMULAS)) {
       expect(formula.outputUnit, formula.id).toBe("ratio");
       expect(formula.definition.length).toBeGreaterThan(0);

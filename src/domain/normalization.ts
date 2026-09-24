@@ -33,7 +33,7 @@ import {
   type Quantity,
 } from "./quantities";
 
-export type DerivedFormulaId = "proportion" | "relativeScale";
+export type DerivedFormulaId = "proportion" | "relativeScale" | "relativeVolume";
 
 /** The units a derived value may carry. Both are dimensionless by construction. */
 export type DerivedOutputUnit = "ratio" | "percent";
@@ -61,6 +61,14 @@ export const DERIVED_FORMULAS: Readonly<Record<DerivedFormulaId, DerivedFormulaD
     outputUnit: "ratio",
     definition: "one world's magnitude divided by another world's magnitude of the same kind",
     phrasing: "of the comparison world",
+  },
+  relativeVolume: {
+    id: "relativeVolume",
+    outputUnit: "ratio",
+    definition:
+      "the cube of one world's mean radius divided by another's, which is the ratio of " +
+      "their volumes only while both are treated as spheres",
+    phrasing: "of the comparison world's volume",
   },
 };
 
@@ -203,6 +211,37 @@ export function relativeBodyScale(
   const right = inputFromSource(second, attributeId);
   if (!left || !right) return null;
   return relativeScale(left, right);
+}
+
+/**
+ * Relative volume between two worlds, treating both as spheres of their mean radius.
+ *
+ * Added for PS-04 content, which needed it: a mission tells a learner that one
+ * world holds 0.13 of another "by volume", and before this formula existed no
+ * registered derivation could produce that number. PS-03 recorded exactly that
+ * hazard (D-26: a derived proportion that is possible but unlabelled is where a
+ * fabricated number enters unnoticed), so the claim is either derived here or not
+ * made at all.
+ *
+ * The sphere assumption is in the definition, not in a footnote. Flattening and
+ * real shape are ignored, so this is a model, and a learner who reads "by volume"
+ * is reading a model result rather than a measurement. It never replaces the radii
+ * it came from.
+ */
+export function relativeBodyVolume(
+  first: BodyRecord,
+  second: BodyRecord,
+): DerivedValue | null {
+  const scale = relativeBodyScale(first, second, "meanRadius");
+  if (!scale) return null;
+
+  const inputs = scale.inputs;
+  return build(
+    "relativeVolume",
+    `${first.displayName} volume`,
+    scale.value.value ** 3,
+    inputs,
+  );
 }
 
 /**
