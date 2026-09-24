@@ -1,8 +1,8 @@
 # Planetary Survey — Source Register, Units, and Data Determinism
 
-Status: binding PS-03 implementation contract
-Jira: GAME-362 (Epic), GAME-366 (PS-03)
-Decision date: 2026-09-24
+Status: binding PS-03 implementation contract, populated by PS-04
+Jira: GAME-362 (Epic), GAME-366 (PS-03), GAME-368 (PS-04)
+Decision date: 2026-09-24 (PS-03), extended 2026-09-24 (PS-04, §1.1)
 
 `SCIENCE_MODEL.md` §5 is the science authority for provenance. This document is its
 operational specification: what a register record *is*, how a value resolves to
@@ -31,11 +31,41 @@ PS-03 builds the **source-of-truth layer**. It ships:
 | the authored register and presentation declarations | `src/content/provenance.ts` |
 | a sourced golden fixture register | `src/testing/sourcedFixture.ts` |
 
-PS-03 does **not** author canonical planetary values. `src/content/` remains empty
-of bodies and missions until PS-04 (`GAME-368`), which authors them and takes them
-through independent science review. The register in `src/content/provenance.ts` is
-therefore versioned and empty, and the gate below makes that state enforced rather
-than assumed.
+PS-03 does **not** author canonical planetary values. `src/content/` remained empty
+of bodies and missions when PS-03 shipped: the register was versioned and empty, and
+the gate below made that state enforced rather than assumed.
+
+---
+
+## 1.1 What PS-04 added (register version `ps-04.0.0`)
+
+PS-04 (`GAME-368`) executed the procedure in §9 and shipped the first register
+content. The layer above is unchanged; this document's contract now has a
+population:
+
+| Delivered | Where |
+|---|---|
+| 11 `value-source` records covering every displayed value | `src/content/sourceRegister.ts` |
+| 5 bodies with sourced, absent-where-unknown values | `src/content/bodies.ts` |
+| 4 missions with completion paths and claim targets | `src/content/missions.ts` |
+| 7 licensed simplifications with learner text | `src/content/simplifications.ts` |
+| learner-text arithmetic checked against the domain's own derivations | `tests/content/missionArithmetic.test.ts` |
+| the request for independent science review | `SCIENCE_REVIEW_PACKET.md` |
+
+Two rules acquired content this time and are worth naming, because both are
+enforced rather than documented:
+
+- **Sourced is not reviewed.** Every entry is `unreviewed` except one `contested`
+  record, and every body carries `scienceReviewed: false`.
+  `catalogueIsScienceReviewed()` reports the difference, and the shell displays it
+  instead of collapsing the two states into one "ready" flag.
+- **A contested value ships, but cannot be scored.** The Moon's surface relief is
+  kept in the register with both conflicting agency figures recorded in its
+  `reviewNote`, and `validateMissionsAgainstRegister` fails the build if any
+  mission requires it.
+
+The release manifest records content version `ps-04.0.0`, and
+`docs/DECISIONS.md` D-28…D-30 records the decisions this population forced.
 
 ---
 
@@ -267,31 +297,42 @@ test call sites that should fail loudly.
 
 ---
 
-## 9. Adding a value (the PS-04 procedure)
+## 9. Adding a value (the procedure PS-04 followed)
 
 1. Find the value in a preferred-class source (§3).
 2. Add a `value-source` record for `(bodyId, attributeId)` to
-   `src/content/provenance.ts`, with `retrievedOn` and `precisionNote` reflecting
-   what the source actually states.
-3. Add the value to the body in `src/content/` with that record's `id` as its
-   `sourceId`, stored in the attribute's canonical unit, with `significantDigits`
-   no greater than the source supports.
+   `src/content/sourceRegister.ts`, with `retrievedOn` and `precisionNote`
+   reflecting what the source actually states.
+3. Add the value to the body in `src/content/bodies.ts` with that record's `id` as
+   its `sourceId`, stored in the attribute's canonical unit, with
+   `significantDigits` no greater than the source supports.
 4. Add the derived forms the mission needs via `src/domain/normalization.ts`; do
-   not compute a ratio inline.
+   not compute a ratio inline. If a size is quoted to the learner that no
+   registered formula produces, add the formula — see D-28.
 5. If a view of the value is distorted, add a `PresentationScaleDeclaration`.
-6. Run `npm run verify`. `validateBodiesAgainstRegister` fails the build on any
+6. Add a test asserting the quoted value is the domain's own derivation
+   (`tests/content/missionArithmetic.test.ts`), so learner-facing arithmetic is
+   checked rather than proofread.
+7. Run `npm run verify`. `validateBodiesAgainstRegister` fails the build on any
    uncited value, and `validateBody` fails it on any impossible one.
-7. Record the science review in `reviewStatus`/`reviewNote`, and bump
-   `SOURCE_REGISTER_VERSION` — the release manifest records it, so a candidate
-   names the exact set of citations its values came from.
+8. Record the science review in `reviewStatus`/`reviewNote`, set
+   `provenance.scienceReviewed`, and bump `SOURCE_REGISTER_VERSION` — the release
+   manifest records it, so a candidate names the exact set of citations its values
+   came from. Until step 8 happens, the entry stays `unreviewed` and the build says
+   so (`SCIENCE_REVIEW_PACKET.md`).
 
 ---
 
-## 10. What PS-03 does not claim
+## 10. What this document does not claim
 
-- No planetary value is authored, so no scientific fact is asserted by this story.
-- No independent science review has occurred. That is PS-04.
-- No renderer representation exists, so no distortion is declared yet. That is
+- **No independent science review has occurred.** PS-04 prepared the material for
+  one (`SCIENCE_REVIEW_PACKET.md`); it did not substitute for it, because
+  `ACCEPTANCE_EVIDENCE_MATRIX.md` forbids automation from claiming it.
+- **No planetary value is a measurement made by this project.** Every value is a
+  transcription, and the transcription is what the review checks.
+- **No renderer representation exists**, so no distortion is declared yet. That is
   PS-05.
-- The golden digests in `tests/` pin *fixture* content. They are a determinism
-  proof, not a claim about the solar system.
+- **The golden digests in `tests/` are not a claim about the solar system.** The
+  fixture digests prove determinism; the shipped-content digests
+  (`tests/content/register.test.ts`) prove that the content a reviewer reads is the
+  content a build ships.

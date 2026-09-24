@@ -406,3 +406,78 @@ renderer free to implement it however it likes.
 disclosing its distortion, and because the application output type has no field for
 a measurement, a declaration can change what a world looks like and never what it
 is.
+
+## D-28 — A number quoted to a learner must be produced by a registered formula
+
+**Decision:** a mission may not state a derived quantity unless
+`src/domain/normalization.ts` has a registered formula that produces it. When PS-04
+content needed to tell a learner that one world holds 0.13 of another "by volume",
+the response was to add `relativeVolume` to the formula register — with the sphere
+assumption written into its definition — rather than to type the number into a
+feedback sentence.
+
+**Rationale:** a cited number is protected by `validateBodiesAgainstRegister`, but a
+*derived* number has no citation to check, so a transcription or arithmetic slip in
+learner-facing prose is invisible to every existing gate. PS-03 recorded exactly
+this hazard in D-26 and then had nothing in it; PS-04 is the first story to write
+learner text, and it is where the hole would have been used.
+
+**Consequence:** `tests/content/missionArithmetic.test.ts` recomputes every derived
+number quoted in shipped mission text through the domain and requires the authored
+sentence to contain the domain's own output, so editing a measurement without
+editing the sentence that reasons about it fails the build. Adding a derived claim
+to content is now a two-module change, which is the intended cost.
+
+## D-29 — A disputed value ships as `contested`, and may not be scored
+
+**Decision:** where agency products disagree and no retrieved source states its
+definition, the value stays in the register with both figures recorded in its
+`reviewNote`, marked `contested`, and is excluded from every mission's completion
+path by `validateMissionsAgainstRegister`. Deleting it was the alternative.
+
+**Rationale:** this is the Moon's surface relief. NSSDCA states a 13 km topographic
+range; LRO altimetry implies roughly 20 km, and the two disagree about whether the
+Moon is proportionally smoother than Mars — the very comparison a relief mission
+makes. Deleting the value would hide a real disagreement in published data, which
+is the failure mode a provenance system exists to prevent; scoring it would teach a
+dispute as a fact.
+
+**Consequence:** the register can carry a value the game refuses to use, the
+refusal is mechanical rather than editorial, and `SIM-5` tells the learner the
+measurement is under review instead of leaving an unexplained gap. Resolving the
+dispute is a named item in `SCIENCE_REVIEW_PACKET.md` §3 Q3.
+
+## D-30 — "No content yet" is a declared state, not a scope failure
+
+**Decision:** `validateV1Scope` returns no issues while the catalogue is entirely
+empty, and applies in full the moment any body or mission exists.
+
+**Rationale:** PS-02 and PS-03 shipped a deliberately empty catalogue, and the v1
+scope rules (one guided mission, two independent missions, one variant) would have
+failed that build. A check that fails an honest empty state pushes authors toward
+placeholder content to silence it — the opposite of what the rule is for. The empty
+state is already declared by design: the register version reads `unpopulated`.
+
+**Consequence:** PS-04's content is the first to be scope-checked, and
+`validateCatalog` on the shipped catalogue is a real assertion rather than a
+formality. A half-authored catalogue still fails, which is the point.
+
+## D-31 — The browser-suite timeout budget is separated from the assertion budget
+
+**Decision:** the per-test wall-clock budget in both Playwright configs is 120s,
+while `expect` keeps the 15s budget. The one test that spent 25 browser round-trips
+gathering focus state now records focus in the page and reads the log once.
+
+**Rationale:** a worker in these suites is a full Chromium driving WebGL through
+SwiftShader while a multi-megabyte Babylon chunk loads and a frame loop runs at
+display rate, so a test's *duration* is a property of the machine and of how many
+sibling workers are competing. On a loaded developer machine the same suite
+reported eight failures that were all timeouts and none of them defects — including
+tests that pass in 2.9s on their own. A gate that reports product failures when the
+machine is busy trains reviewers to ignore it, which is worse than a slow gate.
+
+**Consequence:** a genuine hang still fails the run, a genuine regression still
+fails fast on the 15s assertion budget, and "the suite is red" now means something.
+The duration of each test is no longer itself an assertion, which is the honest
+position: this project does not measure performance in CI, and PS-12 owns
+performance evidence.

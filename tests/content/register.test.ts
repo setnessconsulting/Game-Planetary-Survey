@@ -1,10 +1,16 @@
 /**
- * Shipped-content provenance tests (GAME-366).
+ * Shipped-content provenance tests (GAME-366 schemas, GAME-368 content).
  *
- * The shipped register is empty on purpose, and an empty register is only honest
- * if it is *enforced*. So these tests check three things: the shipped register is
- * internally valid, the catalogue is genuinely empty rather than sneakily
- * populated, and the moment a value exists without an entry, the gate fires.
+ * These tests are what make "every displayed value is traceable to an authority"
+ * a property of the *shipped build* rather than a property of a fixture. They run
+ * against `src/content/`, so a value that appears without a citation fails here.
+ *
+ * The distinction they defend hardest is `sourced` versus `reviewed`. PS-04
+ * transcribed values from agency sources and machine-checked them for physical
+ * plausibility; no human has independently reviewed the science. So the suite
+ * pins the *implication* (reviewed content must have reviewed values) rather than
+ * pinning "unreviewed", which would make the suite fail the day a reviewer signs
+ * off instead of documenting that event.
  */
 
 import { describe, expect, it } from "vitest";
@@ -14,16 +20,50 @@ import {
   MISSIONS,
   PLANETARY_BODIES,
   PRESENTATION_DECLARATIONS,
+  SIMPLIFICATION_REGISTER,
   SOURCE_REGISTER,
+  SOURCE_REGISTER_RETRIEVED_ON,
   SOURCE_REGISTER_VERSION,
   catalogueIsPopulated,
+  catalogueIsScienceReviewed,
+  findBody,
   findMission,
 } from "@/content";
+import { MARS_ID, MOON_ID, SURVEY_BODY_IDS, VENUS_ID } from "@/content/bodies";
+import {
+  buildMissionDataSnapshot,
+  serializeMissionDataSnapshot,
+  validateCatalog,
+  validateV1Scope,
+  type MissionCatalog,
+} from "@/domain/catalog";
 import type { BodyRecord } from "@/domain/bodies";
-import { validateRegister, validateBodiesAgainstRegister } from "@/domain/register";
-import { SOURCE_POLICY_VERSION } from "@/domain/sources";
+import { validatePresentationsLicensed, validateSimplifications } from "@/domain/simplification";
 import { validatePresentationDeclarations } from "@/domain/presentation";
+import {
+  resolveSource,
+  registerDigest,
+  validateBodiesAgainstRegister,
+  validateMissionsAgainstRegister,
+  validateRegister,
+} from "@/domain/register";
+import { SOURCE_POLICY_VERSION, isIsoDate, mayCarryDisplayedValue } from "@/domain/sources";
 import { validateBody } from "@/domain/validation";
+
+// Golden digests for the shipped content. Recomputed deliberately, never by
+// running an update script: a change here should be a decision someone made.
+//
+// Both digests cover *facts*: bodies, values, units, precision, citations, the
+// completion path, and the claim target. Learner-facing wording is excluded on
+// purpose, so copy-editing the learner text does not churn these.
+const SHIPPED_REGISTER_DIGEST = "36114437";
+const SHIPPED_FACTS_DIGEST = "ab3b03a0";
+
+const SHIPPED_CATALOG: MissionCatalog = {
+  registerVersion: SOURCE_REGISTER_VERSION,
+  bodies: PLANETARY_BODIES,
+  missions: MISSIONS,
+};
 
 describe("the shipped source register", () => {
   it("is internally valid", () => {
@@ -40,31 +80,213 @@ describe("the shipped source register", () => {
     // version. This test is what stops them drifting apart.
     expect(CATALOGUE_SOURCE_REGISTER_VERSION).toBe(SOURCE_REGISTER.version);
     expect(SOURCE_REGISTER_VERSION).toBe(SOURCE_REGISTER.version);
+    expect(SOURCE_REGISTER_VERSION).not.toBe("unpopulated");
   });
 
-  it("ships no entries yet, and says so rather than looking sourced", () => {
-    // PS-04 authors the entries with independent science review. Until then the
-    // register must not contain an unreviewed citation to a real authority,
-    // because that would look like provenance without being provenance.
-    expect(SOURCE_REGISTER.entries).toEqual([]);
+  it("is dated with a real calendar date, not a rolled-over one", () => {
+    expect(SOURCE_REGISTER.retrievedOn).toBe(SOURCE_REGISTER_RETRIEVED_ON);
+    expect(isIsoDate(SOURCE_REGISTER.retrievedOn)).toBe(true);
+  });
+
+  it("actually ships entries, and they are the authored set", () => {
+    expect(SOURCE_REGISTER.entries.length).toBeGreaterThan(0);
+    for (const entry of SOURCE_REGISTER.entries) {
+      // Every entry must be usable: identified, attributed, dated, and precise.
+      expect(entry.id.trim()).not.toBe("");
+      expect(entry.sourceTitle.trim()).not.toBe("");
+      expect(entry.precisionNote.trim()).not.toBe("");
+      expect(isIsoDate(entry.retrievedOn)).toBe(true);
+      expect(entry.url ?? entry.datasetIdentifier).toBeTruthy();
+      if (entry.reviewStatus !== "unreviewed") {
+        expect(entry.reviewNote.trim()).not.toBe("");
+      }
+    }
+  });
+
+  it("cites only source classes that may originate a displayed value", () => {
+    // The structural half of the register's central rule: a value-source may
+    // resolve a number, and a locator may not. Third-party classes exist in the
+    // type system so they can be recorded, never so they can be displayed.
+    const valueSources = SOURCE_REGISTER.entries.filter((entry) => entry.role === "value-source");
+    expect(valueSources.length).toBeGreaterThan(0);
+    for (const entry of valueSources) {
+      expect(mayCarryDisplayedValue(entry.sourceClass)).toBe(true);
+    }
+  });
+
+  it("resolves every value a body displays to the entry the body cites", () => {
+    for (const body of PLANETARY_BODIES) {
+      for (const [attributeId, sourced] of Object.entries(body.attributes)) {
+        const resolved = resolveSource(SOURCE_REGISTER, body.id, attributeId as never);
+        expect(resolved?.id).toBe(sourced.sourceId);
+        expect(resolved?.role).toBe("value-source");
+      }
+    }
+  });
+
+  it("does not let a locator resolve a value, even when it is the only entry", () => {
+    const locatorOnly = {
+      ...SOURCE_REGISTER,
+      entries: [
+        {
+          ...SOURCE_REGISTER.entries[0]!,
+          id: "locator.only",
+          role: "locator" as const,
+        },
+      ],
+    };
+    expect(resolveSource(locatorOnly, SOURCE_REGISTER.entries[0]!.bodyId, "meanRadius" as never)).toBeUndefined();
   });
 });
 
 describe("the shipped catalogue", () => {
-  it("is empty, and reports itself as such", () => {
-    expect(PLANETARY_BODIES).toEqual([]);
-    expect(MISSIONS).toEqual([]);
-    expect(catalogueIsPopulated()).toBe(false);
-    expect(findMission("anything")).toBeUndefined();
+  it("is populated, and reports itself as such", () => {
+    expect(PLANETARY_BODIES.length).toBe(5);
+    expect(MISSIONS.length).toBeGreaterThan(0);
+    expect(catalogueIsPopulated()).toBe(true);
+    for (const id of SURVEY_BODY_IDS) {
+      expect(findBody(id)?.id).toBe(id);
+    }
+    expect(findBody("not-a-world")).toBeUndefined();
+    expect(findMission(MISSIONS[0]!.id)?.id).toBe(MISSIONS[0]!.id);
+    expect(findMission("not-a-mission")).toBeUndefined();
   });
 
-  it("ships no presentation distortions it has not declared", () => {
-    expect(PRESENTATION_DECLARATIONS).toEqual([]);
-    expect(validatePresentationDeclarations(PRESENTATION_DECLARATIONS)).toEqual([]);
+  it("passes the full catalog contract, including the v1 content scope", () => {
+    expect(validateV1Scope(SHIPPED_CATALOG)).toEqual([]);
+    expect(validateCatalog(SHIPPED_CATALOG)).toEqual([]);
   });
 
-  it("passes the provenance gate vacuously, which is the honest state", () => {
+  it("has every value physically plausible on its own", () => {
+    for (const body of PLANETARY_BODIES) {
+      expect(validateBody(body)).toEqual([]);
+    }
+  });
+
+  it("passes the provenance gate, so no value ships uncited", () => {
     expect(validateBodiesAgainstRegister(PLANETARY_BODIES, SOURCE_REGISTER)).toEqual([]);
+  });
+
+  it("keeps a contested value out of every mission's completion path", () => {
+    // The Moon's relief is deliberately shipped as contested. This is the check
+    // that turns `reviewStatus: "contested"` from a label into a constraint.
+    expect(validateMissionsAgainstRegister(SHIPPED_CATALOG, SOURCE_REGISTER)).toEqual([]);
+    const contested = PLANETARY_BODIES.flatMap((body) =>
+      Object.values(body.attributes).filter((value) => value.reviewStatus === "contested"),
+    );
+    expect(contested.length).toBeGreaterThan(0);
+    for (const mission of MISSIONS) {
+      for (const observation of mission.requiredObservations) {
+        const body = findBody(observation.bodyId);
+        expect(body?.attributes[observation.attributeId]?.reviewStatus).not.toBe("contested");
+      }
+    }
+  });
+
+  it("never reports itself as reviewed while any value is unreviewed", () => {
+    // `catalogueIsScienceReviewed` is the gate PS-11/PS-14 read. It must be false
+    // unless every body is signed off, and it must not be reachable by having
+    // content alone.
+    const allReviewed = PLANETARY_BODIES.every((body) => body.provenance.scienceReviewed);
+    expect(catalogueIsScienceReviewed()).toBe(allReviewed);
+  });
+
+  it("marks every displayed value's review state consistently with its citation", () => {
+    for (const body of PLANETARY_BODIES) {
+      for (const sourced of Object.values(body.attributes)) {
+        const entry = SOURCE_REGISTER.entries.find((record) => record.id === sourced.sourceId);
+        expect(entry).toBeTruthy();
+        // A body may not be more confident than the source it cites. Reviewing a
+        // value does not review its citation, and the reverse.
+        if (body.provenance.scienceReviewed) {
+          expect(sourced.reviewStatus).toBe("reviewed");
+        }
+      }
+    }
+  });
+
+  it("reports an absent value as absent rather than as a small one", () => {
+    // The Moon has no sourced heliocentric distance, and the icy moons orbit
+    // planets rather than the Sun, so those fields simply do not exist. This is
+    // the shape a "no authoritative value" instrument reading depends on.
+    expect(findBody(MOON_ID)?.attributes.orbitalRadius).toBeUndefined();
+    expect(findBody(MARS_ID)?.attributes.orbitalRadius).toBeDefined();
+    expect(findBody(VENUS_ID)?.attributes.orbitalRadius).toBeDefined();
+  });
+});
+
+describe("the shipped simplification register", () => {
+  it("licenses every simplification with all four required elements", () => {
+    expect(validateSimplifications(SIMPLIFICATION_REGISTER)).toEqual([]);
+    expect(SIMPLIFICATION_REGISTER.length).toBeGreaterThan(0);
+    for (const record of SIMPLIFICATION_REGISTER) {
+      expect(record.modelBoundary.trim()).not.toBe("");
+      expect(record.learnerText.trim()).not.toBe("");
+      expect(record.rationale.trim()).not.toBe("");
+      expect(record.sourceBasisIds.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("licenses every simplification against a register entry that exists", () => {
+    const known = new Set(SOURCE_REGISTER.entries.map((entry) => entry.id));
+    for (const record of SIMPLIFICATION_REGISTER) {
+      for (const sourceBasisId of record.sourceBasisIds) {
+        expect(known.has(sourceBasisId)).toBe(true);
+      }
+    }
+  });
+
+  it("ships no presentation distortion it has not declared", () => {
+    expect(validatePresentationDeclarations(PRESENTATION_DECLARATIONS)).toEqual([]);
+    expect(validatePresentationsLicensed(PRESENTATION_DECLARATIONS, SIMPLIFICATION_REGISTER)).toEqual(
+      [],
+    );
+  });
+});
+
+describe("the shipped content is deterministic", () => {
+  it("records the register identity the facts were derived from", () => {
+    const snapshot = buildMissionDataSnapshot({
+      catalog: SHIPPED_CATALOG,
+      register: SOURCE_REGISTER,
+      seed: 11,
+    });
+    expect(snapshot.registerVersion).toBe(SOURCE_REGISTER_VERSION);
+    expect(snapshot.registerDigest).toBe(registerDigest(SOURCE_REGISTER));
+  });
+
+  it("produces byte-identical facts for the same content and seed", () => {
+    const first = serializeMissionDataSnapshot(
+      buildMissionDataSnapshot({ catalog: SHIPPED_CATALOG, register: SOURCE_REGISTER, seed: 11 }),
+    );
+    const second = serializeMissionDataSnapshot(
+      buildMissionDataSnapshot({ catalog: SHIPPED_CATALOG, register: SOURCE_REGISTER, seed: 11 }),
+    );
+    expect(second).toBe(first);
+  });
+
+  it("pins golden digests for the shipped content", () => {
+    // Recompute deliberately when content changes: this assertion is the tripwire
+    // that makes a shipped-fact change a visible act rather than a diff nobody
+    // reads.
+    const snapshot = buildMissionDataSnapshot({
+      catalog: SHIPPED_CATALOG,
+      register: SOURCE_REGISTER,
+      seed: 11,
+    });
+    expect(snapshot.registerDigest).toBe(SHIPPED_REGISTER_DIGEST);
+    expect(snapshot.factsDigest).toBe(SHIPPED_FACTS_DIGEST);
+  });
+
+  it("is independent of the seed, which selects a run and never a value", () => {
+    const one = buildMissionDataSnapshot({ catalog: SHIPPED_CATALOG, register: SOURCE_REGISTER, seed: 1 });
+    const other = buildMissionDataSnapshot({
+      catalog: SHIPPED_CATALOG,
+      register: SOURCE_REGISTER,
+      seed: 4_294_967_295,
+    });
+    expect(other.seed).toBe(4_294_967_295);
+    expect(other.factsDigest).toBe(one.factsDigest);
   });
 });
 

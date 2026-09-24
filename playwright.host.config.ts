@@ -28,7 +28,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: WORKERS,
   reporter: [["list"]],
-  timeout: 60_000,
+  // Same reasoning as playwright.config.ts: the budget is there to catch a hang,
+  // not to measure how busy the machine was during the run.
+  timeout: 120_000,
 
   use: {
     baseURL: BASE_URL,

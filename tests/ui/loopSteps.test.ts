@@ -55,7 +55,11 @@ describe("deriveLoopStatus", () => {
   it("marks the load step active while no mission is loaded, and says why", () => {
     const state = statusOf(initialMissionSnapshot(0), "load");
     expect(state.status).toBe("active");
-    expect(state.note).toContain("No mission content is loaded");
+    // The note has to distinguish "no mission is loaded" from "no mission exists":
+    // PS-04 authored the missions, so telling the learner the content is missing
+    // would be a lie in the opposite direction.
+    expect(state.note).toContain("No mission is loaded");
+    expect(state.note).toContain("does not load them yet");
   });
 
   it("marks load done once a mission is loaded", () => {

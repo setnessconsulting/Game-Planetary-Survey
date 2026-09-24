@@ -26,5 +26,6 @@ export * from "./quantities";
 export * from "./random";
 export * from "./register";
 export * from "./renderSnapshot";
+export * from "./simplification";
 export * from "./sources";
 export * from "./validation";

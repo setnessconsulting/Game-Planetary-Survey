@@ -75,7 +75,10 @@ export function deriveLoopStatus(snapshot: MissionSnapshot): readonly LoopStepSt
       case "load":
         return snapshot.missionId
           ? { status: "done", note: "Workstation online." }
-          : { status: "active", note: "No mission content is loaded. Mission content is authored in PS-04 (GAME-368)." };
+          : {
+              status: "active",
+              note: "No mission is loaded. The authored missions exist and are source-cited, but this build does not load them yet.",
+            };
       case "briefing":
         return snapshot.phase === "briefing"
           ? { status: "active", note: "Reading the survey question." }

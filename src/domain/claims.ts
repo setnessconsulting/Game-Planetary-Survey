@@ -22,9 +22,25 @@ import { hashToSeed, seedToken } from "./random";
 
 export type ClaimRelation = "largerThan" | "smallerThan" | "sameAs";
 
+/**
+ * What a claim compares.
+ *
+ * `magnitude` compares the measured values directly. `proportionOfRadius`
+ * compares each value as a fraction of its own body's mean radius, which is the
+ * MS-ESS1-3 LO-3 insight: a 13 km feature means something different on a
+ * 1737 km world than on a 6052 km one.
+ *
+ * The two bases are different scientific statements, so a claim carries the one
+ * it was made under. A proportional claim additionally requires the radius of both
+ * worlds to be cited, because without them the proportion cannot be checked at
+ * all.
+ */
+export type ClaimBasis = "magnitude" | "proportionOfRadius";
+
 export interface Claim {
   readonly id: string;
   readonly attributeId: AttributeId;
+  readonly basis: ClaimBasis;
   readonly subject: BodyId;
   readonly relation: ClaimRelation;
   readonly object: BodyId;
@@ -33,6 +49,8 @@ export interface Claim {
 
 export interface ClaimDraft {
   readonly attributeId: AttributeId;
+  /** Defaults to `magnitude` so an ordinary comparison needs no extra ceremony. */
+  readonly basis?: ClaimBasis;
   readonly subject: BodyId;
   readonly relation: ClaimRelation;
   readonly object: BodyId;
@@ -47,13 +65,22 @@ export const SAME_AS_RELATIVE_TOLERANCE = 0.01;
  * a golden fixture produces the same id.
  */
 export function createClaim(draft: ClaimDraft): Claim {
+  const basis = draft.basis ?? "magnitude";
   const cited = [...draft.citedEvidenceIds].sort().join(",");
   const id = seedToken(
     hashToSeed(
-      [draft.attributeId, draft.subject, draft.relation, draft.object, cited].join("|"),
+      [draft.attributeId, basis, draft.subject, draft.relation, draft.object, cited].join("|"),
     ),
   );
-  return { ...draft, id };
+  return {
+    id,
+    attributeId: draft.attributeId,
+    basis,
+    subject: draft.subject,
+    relation: draft.relation,
+    object: draft.object,
+    citedEvidenceIds: draft.citedEvidenceIds,
+  };
 }
 
 export type ClaimVerdict = "supported" | "contradicted" | "insufficient-evidence";
@@ -114,7 +141,47 @@ export function evaluateClaim(
     citationProblems.push(`No cited ${definition.label.toLowerCase()} measurement for the second world.`);
   }
 
-  const citationCoverage = Boolean(subjectRecord && objectRecord);
+  // A proportion of radius only means something for a size measurement. A
+  // temperature divided by a radius is a number without a meaning, so it is
+  // refused rather than computed.
+  const proportional = claim.basis === "proportionOfRadius";
+  const basisIsMeaningful = !proportional || definition.kind === "length";
+  if (!basisIsMeaningful) {
+    citationProblems.push(
+      `${definition.label} is not a size, so it has no proportion of radius to compare. Compare two of these directly instead.`,
+    );
+  }
+
+  // A proportional claim is a claim about a ratio, so it needs the denominator as
+  // well as the numerator. Without the radii there is no proportion to check, and
+  // accepting the claim on the raw values would silently grade the wrong insight.
+  let subjectRadius: EvidenceRecord | undefined;
+  let objectRadius: EvidenceRecord | undefined;
+  if (proportional && basisIsMeaningful) {
+    subjectRadius = cited.find(
+      (record) => record.bodyId === claim.subject && record.attributeId === "meanRadius",
+    );
+    objectRadius = cited.find(
+      (record) => record.bodyId === claim.object && record.attributeId === "meanRadius",
+    );
+    if (!subjectRadius) {
+      citationProblems.push(
+        "No cited mean radius for the first world. A proportion needs the size of the world as well as the measurement.",
+      );
+    }
+    if (!objectRadius) {
+      citationProblems.push(
+        "No cited mean radius for the second world. A proportion needs the size of the world as well as the measurement.",
+      );
+    }
+  }
+
+  const citationCoverage = Boolean(
+    subjectRecord &&
+      objectRecord &&
+      basisIsMeaningful &&
+      (!proportional || (subjectRadius && objectRadius)),
+  );
   const unitAndPrecisionCare =
     citationCoverage &&
     (subjectRecord?.significantDigits ?? 0) >= 1 &&
@@ -122,7 +189,7 @@ export function evaluateClaim(
 
   // ANTI-GUESSING RULE: without cited evidence for both worlds the claim cannot
   // be checked at all, no matter how plausible it looks.
-  if (!subjectRecord || !objectRecord) {
+  if (!citationCoverage || !subjectRecord || !objectRecord) {
     return {
       verdict: "insufficient-evidence",
       dimensions: {
@@ -140,8 +207,35 @@ export function evaluateClaim(
     };
   }
 
-  const subjectValue = canonicalMagnitude(subjectRecord.reading);
-  const objectValue = canonicalMagnitude(objectRecord.reading);
+  const subjectValue = proportional
+    ? claimBasisMagnitude(subjectRecord, subjectRadius)
+    : canonicalMagnitude(subjectRecord.reading);
+  const objectValue = proportional
+    ? claimBasisMagnitude(objectRecord, objectRadius)
+    : canonicalMagnitude(objectRecord.reading);
+  // A zero denominator would make a proportion meaningless rather than infinite.
+  if (!Number.isFinite(subjectValue) || !Number.isFinite(objectValue)) {
+    return {
+      verdict: "insufficient-evidence",
+      dimensions: {
+        citationCoverage,
+        evidenceAdequacy: false,
+        unitAndPrecisionCare,
+        reasoningConsistency: false,
+      },
+      citationProblems: [
+        ...citationProblems,
+        "A world's radius reads as zero, so its proportion cannot be computed. Re-measure the radius.",
+      ],
+      comparedValues: [
+        { bodyId: claim.subject, value: subjectRecord.reading },
+        { bodyId: claim.object, value: objectRecord.reading },
+      ],
+      explanation:
+        "This claim cannot be checked from the evidence cited: one of the radii is zero, " +
+        "so the proportion has no meaning. Capture a radius measurement for both worlds.",
+    };
+  }
   const larger = Math.max(Math.abs(subjectValue), Math.abs(objectValue));
   const relativeDifference = larger === 0 ? 0 : Math.abs(subjectValue - objectValue) / larger;
 
@@ -164,13 +258,15 @@ export function evaluateClaim(
     { bodyId: claim.object, value: objectRecord.reading },
   ];
 
+  const subjectName = proportional ? "proportion of mean radius" : definition.label.toLowerCase();
+
   if (relationHolds) {
     return {
       verdict: "supported",
       dimensions,
       citationProblems,
       comparedValues,
-      explanation: `The cited ${definition.label.toLowerCase()} measurements support this claim, and the evidence is attached to it.`,
+      explanation: `The cited ${subjectName} measurements support this claim, and the evidence is attached to it.`,
     };
   }
 
@@ -183,6 +279,21 @@ export function evaluateClaim(
       "The cited measurements point the other way. That is useful: re-read the two values, " +
       "check the units, and revise the claim or collect a measurement you have not used yet.",
   };
+}
+
+/**
+ * The magnitude a claim's relation is evaluated against.
+ *
+ * For a proportional claim this is the measured value divided by the same world's
+ * mean radius, computed in canonical units so the ratio is dimensionless.
+ */
+function claimBasisMagnitude(
+  record: EvidenceRecord,
+  radius: EvidenceRecord | undefined,
+): number {
+  if (!radius) return Number.NaN;
+  const radiusMetres = canonicalMagnitude(radius.reading);
+  return radiusMetres === 0 ? Number.NaN : canonicalMagnitude(record.reading) / radiusMetres;
 }
 
 /** Human-readable relation, used by the UI and by debrief text. */
