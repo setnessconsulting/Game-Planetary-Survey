@@ -8,16 +8,23 @@
  * The boundary is enforced by:
  *  - `scripts/check-architecture.mjs` (import + source-pattern scan);
  *  - the `no-restricted-imports` rules in `eslint.config.mjs`;
- *  - `tests/domain/purity.test.ts`.
+ *  - `tests/domain/boundaries.test.ts`.
  */
 
 export * from "./attributes";
 export * from "./bodies";
+export * from "./catalog";
+export * from "./canonical";
 export * from "./claims";
 export * from "./comparison";
 export * from "./evidence";
 export * from "./measurement";
 export * from "./mission";
+export * from "./normalization";
+export * from "./presentation";
 export * from "./quantities";
 export * from "./random";
+export * from "./register";
 export * from "./renderSnapshot";
+export * from "./sources";
+export * from "./validation";

@@ -1,7 +1,7 @@
 # Planetary Survey — Decisions
 
-Status: owner/planning decisions frozen through PS-01
-Jira: GAME-362 (Epic), GAME-363 (PS-01)
+Status: owner/planning decisions frozen through PS-03
+Jira: GAME-362 (Epic), GAME-363 (PS-01), GAME-366 (PS-03)
 Decision date: 2026-09-24
 
 Each decision is closed. A downstream story may add detail, but may not reverse a
@@ -298,3 +298,111 @@ a silent lie to the learner and a real performance defect on weak hardware.
 
 **Consequence:** both paths are pinned by real-browser regression tests
 (`tests/e2e/smoke.spec.ts`), one of which injects a present-but-unusable WebGPU API.
+
+---
+
+## D-23 — "Canonical unit" means two different things, and both are needed
+
+**Decision:** an attribute has a **canonical unit** for storage and display
+(`km`, `K`), and each unit `kind` has an **SI base unit** for comparison and ratio
+computation (`m`, `K`, `ratio`). Both are declared in one registry
+(`src/domain/quantities.ts`), and both are enforced.
+
+**Rationale:** PS-01 wrote both statements without reconciling them —
+`SCIENCE_MODEL.md` §6 says canonical storage units are SI, while the attribute
+registry declares `km` for lengths. They are not in conflict once separated:
+"what unit is this value stored and shown in" and "what does this value equal" are
+different questions. Leaving the tension unrecorded would have produced two unit
+conversion factors in two modules and a ratio that quietly depended on which one an
+author happened to call.
+
+**Consequence:** a value stored in a non-canonical unit is a *warning* (it is
+convertible, not wrong); a value in the wrong *kind* is an error; every comparison
+and every derived value is computed in the SI base unit; and the conversion factor
+for a unit exists in exactly one place. Recording and display precision is always
+supplied by the caller, so rounding for display can never change a stored value.
+
+## D-24 — The register is a two-part contract, and a third-party source cannot originate a value
+
+**Decision:** the register's **schema, policy, and validation** live in
+`src/domain/sources.ts` and `src/domain/register.ts`; the register's **data** lives
+in `src/content/provenance.ts`. A record has a `role`: `value-source` or `locator`.
+Only a `value-source` of an accepted class (`agency-primary`, `peer-reviewed`,
+`agency-dataset`) can resolve a displayed value. A `third-party` record may only be
+a `locator`, and must carry a justification naming the primary source it led to.
+
+**Rationale:** two separate concerns made this shape necessary. First, the privacy
+surface check permits absolute URLs only under `src/content/`, because a citation is
+the one legitimate place for one — so the validating code must not hold URL data and
+the data must not hold policy. Second, `SCIENCE_MODEL.md` §5.1 already said a
+third-party source "may be used only to *find* the primary source"; encoding that as
+a role rather than as a rule in prose makes it unenforceable to ignore. Without it,
+the single most likely provenance failure — citing an infographic or a comparator as
+the origin of a number — is the hardest one to detect after the fact.
+
+**Consequence:** `resolveSource` cannot return a locator; a register with an
+unjustified or mis-roled third-party record fails validation; and there is no
+write-in exception path for a non-authoritative source, because the policy's whole
+value is that it has none.
+
+## D-25 — Freshness is a function of recorded dates, never of the clock
+
+**Decision:** `assessRegisterFreshness(register, asOf, thresholds)` takes its
+reference date as an argument. Default thresholds are `agingDays: 730` and
+`staleDays: 1825`, passed as data. Calendar arithmetic uses a proleptic-Gregorian
+day-number conversion, not the platform date parser.
+
+**Rationale:** a build must be able to state "this register is current as of its own
+retrieval date" and have that answer be identical on two runs of the same commit.
+Reading the clock would make the register's state a property of the machine that
+ran the check, and would break the determinism PS-03 exists to establish. The
+platform date parser is avoided for a second reason: it silently rolls a
+non-existent day over into the next month, which would let a typo'd retrieval date
+pass validation. Epoch-dependent values are flagged by `appliesToEpoch` on the
+record instead, because a date cannot express that a value moves.
+
+**Consequence:** the domain layer contains no `Date` usage at all, freshness is
+testable at any date without mocking, and an empty register reports `unknown`
+rather than appearing fresh.
+
+## D-26 — Derived values are formula-identified, unit-typed, and never replace what they came from
+
+**Decision:** a derived value carries the `formulaId` that produced it, its own
+unit (`ratio`), and its inputs with the source ids they came from. It is computed
+only from authoritative values, and it is added *alongside* the measurement it
+derives from. An unavailable or incomparable input returns `null` — never a default.
+
+**Rationale:** MS-ESS1-3 asks the learner to interpret a proportion, so proportions
+are inevitable — and an unlabelled proportion is exactly where a fabricated number
+could enter unnoticed. Naming the formula and carrying the source ids makes the
+derivation auditable and citable, and keeps the measurement as the evidence a claim
+must cite (`SCIENCE_MODEL.md` §4). Returning `null` rather than a fallback is the
+same rule as an absent value: the game reports the gap instead of guessing.
+
+**Consequence:** `ratioOf` and `relativeScale` are the only constructors, a derived
+value cannot be hand-built, and a proportion is displayed through
+`describeDerivedValue` at the caller's precision so a normalization can never claim
+more precision than its source supports.
+
+## D-27 — A distorted representation must declare itself, in data
+
+**Decision:** every rendered representation has a
+`PresentationScaleDeclaration`: kind, `ratio` (drawn : literal), the register
+entries it illustrates, a rationale, a model boundary, and the exact learner-facing
+words. `literal` requires ratio 1; any other kind requires a ratio other than 1, a
+non-empty model boundary, non-empty learner text, and at least one source basis.
+`applyPresentationDeclaration` returns only a scale factor, a notice, and the
+declaration id.
+
+**Rationale:** `SCIENCE_MODEL.md` §7-§8 already forbid a quality tier or an effect
+from changing a scientific value, and require a simplification to be licensed by a
+source, a rationale, a boundary, and learner text. Holding that as renderer
+constants would have left the requirement unenforceable — a drawing rule nobody can
+inspect is how a learner comes to believe a non-literal comparison view is literal.
+Naming the declaration in the domain keeps the *decision* auditable and leaves the
+renderer free to implement it however it likes.
+
+**Consequence:** the system comparison view cannot be added by PS-05 without
+disclosing its distortion, and because the application output type has no field for
+a measurement, a declaration can change what a world looks like and never what it
+is.

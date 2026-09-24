@@ -8,33 +8,33 @@
  * The catalogue is EMPTY ON PURPOSE.
  *
  * GAME-364 requires that no production science content is invented during
- * bootstrap, and docs/SCIENCE_MODEL.md §5.2 requires every displayed value to
- * have a per-field source-register entry. PS-03 (GAME-366) builds the register;
- * PS-04 (GAME-368) authors the bodies, missions, and claims and puts them through
+ * bootstrap, and docs/SCIENCE_MODEL.md §5.2 requires every displayed value to have
+ * a per-field source-register entry. PS-03 (GAME-366) built that register — its
+ * schema, policy, validation, freshness, and determinism now live in
+ * `src/domain/`, and the register content lives in `./provenance.ts`. PS-04
+ * (GAME-368) authors the bodies, missions, and claims here and puts them through
  * independent science review. Nothing here may be filled in before then.
+ *
+ * The *schema* for a mission is owned by the domain (`@/domain/catalog`), not by
+ * this file: content conforms to the domain, never the reverse
+ * (docs/TECHNICAL_DESIGN.md §2.1).
  */
 
-import type { AttributeId } from "@/domain/attributes";
-import type { BodyId, BodyRecord } from "@/domain/bodies";
-import type { Seed } from "@/domain/random";
+import type { BodyRecord } from "@/domain/bodies";
+import type { MissionDefinition } from "@/domain/catalog";
 
-export interface MissionDefinition {
-  readonly id: string;
-  readonly title: string;
-  /** Plain-language survey question the learner must answer with data. */
-  readonly brief: string;
-  /** The scale property this mission is about (docs/SCIENCE_MODEL.md §1.2). */
-  readonly scaleProperty: AttributeId;
-  readonly targetBodyIds: readonly BodyId[];
-  readonly seedBase: Seed;
-  /** Set when this mission is a seeded/data variant of another mission. */
-  readonly variantOf: string | null;
-  /** Target session length in minutes, from docs/PRD.md §5. */
-  readonly targetMinutes: number;
-}
+export type { MissionDefinition } from "@/domain/catalog";
+export { SOURCE_REGISTER, SOURCE_REGISTER_VERSION, PRESENTATION_DECLARATIONS } from "./provenance";
 
-/** Version marker for the source register these values were read from. */
-export const CATALOGUE_SOURCE_REGISTER_VERSION = "unpopulated";
+/**
+ * Version marker for the source register these values were read from.
+ *
+ * Kept as a literal here as well as in `./provenance.ts` because
+ * `scripts/create-release-manifest.mjs` reads this exact declaration to stamp the
+ * release manifest's content version. `tests/content/register.test.ts` asserts the
+ * two agree, so the duplication cannot drift unnoticed.
+ */
+export const CATALOGUE_SOURCE_REGISTER_VERSION = "ps-03-unpopulated";
 
 /** Bodies with authoritative, reviewed values. Empty until PS-04. */
 export const PLANETARY_BODIES: readonly BodyRecord[] = [];
