@@ -92,6 +92,21 @@ is the material prepared for that review, and
    reviewer wants a different re-retrieval cadence, it is a one-line change, but
    nobody has yet signed off on a cadence as a science decision.
 
+6. **The mission loop has no debrief or completion transition.** `debrief` and
+   `complete` are modelled phases and nothing in `src/domain/mission.ts`
+   transitions into them, so a mission whose claim is `supported` still cannot
+   finish. `tests/content/missionTrace.test.ts` pins that boundary deliberately:
+   closing it means the state machine growing scoring and debrief, which is PS-08's
+   scope, and a content story should not invent the semantics. Found by writing the
+   golden traces PS-04 requires.
+
+7. **Revising a claim costs a redundant measurement.** `reviseClaim` returns the
+   learner to `observing`, where `draftClaim` is not legal, so fixing a citation
+   that was merely incomplete costs one extra instrument reading and one extra
+   comparison even though the notebook already holds everything the revised claim
+   needs. Also PS-08's, also pinned in the trace suite rather than left for someone
+   to find in a playtest.
+
 ## Recorded decisions
 
 PS-01 decisions are closed (`DECISIONS.md` D-01…D-18); PS-02 and PS-03 added
