@@ -1,4 +1,10 @@
+import { cpus } from "node:os";
+
 import { defineConfig, devices } from "@playwright/test";
+
+// Capped for the same reason as playwright.config.ts: software-WebGL workers are
+// CPU-bound, and oversubscribing the CPU starves the frame loop under test.
+const WORKERS = Math.max(1, Math.min(4, Math.floor(cpus().length / 2)));
 
 /**
  * Nested-host compatibility.
@@ -20,6 +26,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
+  workers: WORKERS,
   reporter: [["list"]],
   timeout: 60_000,
 

@@ -1,0 +1,69 @@
+name: PS-02 Foundation Verification
+
+# Credential-free by design. This workflow installs, verifies, and builds with no
+# secret of any kind: no registry token, no games-site credential, no deployment
+# key. v1 is local-first, and a build that needed a credential to *verify* would be
+# a silent dependency on a remote service (docs/PRIVACY_AND_PERSISTENCE.md).
+#
+# The game is not published from here. Release qualification is owned by
+# PS-PROMOTE, not by the foundation gate.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ps02-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify (static, unit, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install the exact committed dependency graph
+        run: npm ci
+      # Runs typecheck, lint, unit tests with coverage thresholds, the architecture,
+      # privacy, and asset-provenance checks, then the production build followed by
+      # the bundle-budget and release-identity checks. One command, so CI cannot
+      # drift from the gate a developer runs locally.
+      - run: npm run verify
+
+  browser:
+    name: Browser (real renderer, all engines)
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # All three engines: the shell and accessibility suites double as
+      # cross-engine proof, and WebKit is where the skip-link tab-order defect
+      # actually surfaced (a plain link is not in WebKit's sequential focus order).
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Real-browser renderer and accessibility suites
+        run: npm run test:e2e
+      - name: Nested games-site base path
+        run: npm run test:host
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-evidence
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

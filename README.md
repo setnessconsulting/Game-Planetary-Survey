@@ -23,17 +23,19 @@ measurement evidence.
 | Phase | Story | State |
 |---|---|---|
 | Contract freeze | GAME-363 / PS-01 | complete — this `docs/` set |
-| Executable foundation | GAME-364 / PS-02 | next |
+| Executable foundation | GAME-364 / PS-02 | in review |
 | games-site host contract | GAME-365 / PS-HOST | blocked by PS-02 |
 | Science registry | GAME-366 / PS-03 | blocked by PS-02 |
 | Design preproduction | GAME-367 / PS-DESIGN | blocked by PS-02 |
 
 Live status is tracked in Jira and summarized in [`docs/STATUS.md`](docs/STATUS.md).
 
-**This repository is in the contract/foundation phase.** There is no playable
-build yet; the application skeleton lands in PS-02. The `docs/` directory is the
-binding product, science, and architecture contract that all downstream work must
-honor.
+**This repository is in the contract/foundation phase.** The application skeleton,
+boundaries, seams, and verification gate exist and run; **there is no playable
+build yet, and no planetary value is shipped**. The body catalogue is deliberately
+empty until PS-03/PS-04 author it and science-review it, because an unsourced
+number would be worse than no number. The `docs/` directory is the binding product,
+science, and architecture contract that all downstream work must honor.
 
 ## Scope boundaries
 
@@ -65,7 +67,9 @@ Full detail: [`docs/TECHNICAL_DESIGN.md`](docs/TECHNICAL_DESIGN.md).
 ## Technology
 
 Families are frozen by PS-01; **exact versions are resolved and pinned by PS-02**
-in `package.json` plus a committed lockfile.
+in `package.json` plus a committed lockfile. The graph is pinned exactly: no caret
+or tilde ranges, so `npm ci` reproduces the reviewed graph byte for byte
+(see [`docs/TOOLCHAIN_AND_SUPPORT.md`](docs/TOOLCHAIN_AND_SUPPORT.md)).
 
 | Area | Family | Baseline |
 |---|---|---|
@@ -108,23 +112,42 @@ architecture check.
 
 ## Development commands
 
-**Established by PS-02.** This section will list the authoritative local
-commands as soon as the package is bootstrapped. PS-01 defines the command set
-that PS-02 must provide, and local and CI verification must call the same scripts:
+Established by PS-02. Node 24 (`nvm use`), then `npm ci`.
 
-```text
-install          install from the committed lockfile
-typecheck        tsc --noEmit
-lint             eslint .
-test             vitest run            (unit / contract / deterministic fixtures)
-test:e2e         build + playwright     (real-browser renderer smoke + E2E)
-test:a11y        axe-core checks
-check:architecture   domain import-boundary enforcement
-check:privacy        runtime dependency + network surface enforcement
-check:assets         source-art vs shipping-asset separation
-build            production build (must work under a nested base path)
-verify           the aggregate local gate
+| Command | What it does |
+|---|---|
+| `npm run dev` | Vite dev server on `127.0.0.1:5273` |
+| `npm run preview` | Serve the built artifact on `127.0.0.1:5274` |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | `eslint .` |
+| `npm test` | Vitest: domain, platform, UI contract tests |
+| `npm run test:coverage` | Same, with the domain coverage thresholds enforced |
+| `npm run test:e2e` | Build, then real-browser renderer smoke + accessibility, on chromium, firefox, and webkit |
+| `npm run test:a11y:run` | Only the `@a11y` axe checks |
+| `npm run test:host` | Version-pinned nested-base build, then the games-site base-path suite |
+| `npm run check:architecture` | Domain import boundaries and the single-frame-loop rule |
+| `npm run check:privacy` | No analytics, tracker, or remote-service surface |
+| `npm run check:assets` | Shipping assets must be registered with provenance |
+| `npm run report:bundle` | Eager/lazy byte budgets and the lazy-renderer guard |
+| `npm run build` | Production build at a relative base (host-agnostic) |
+| `npm run build:nested` | Production build at `/game-assets/planetary-survey/<version>/` |
+| `npm run release:manifest` | Write the release identity manifest for `dist/` |
+| `npm run release:check` | Recompute and verify that manifest |
+| `npm run verify` | **The gate.** Everything above that does not need a browser |
+
+```bash
+npm ci && npm run verify && npm run test:e2e && npm run test:host
 ```
+
+Two things about this set are load-bearing:
+
+- **CI calls these exact scripts** (`.github/workflows/ci.yml`). There is no
+  CI-only path, so a green build cannot mean anything a developer could not have
+  reproduced locally.
+- **The browser suites are the renderer evidence.** A mocked canvas in Vitest
+  proves nothing about Babylon initializing on WebGL2, so the live frame loop is
+  only ever asserted in a real browser, and each test *pins* the backend it claims
+  to cover instead of assuming one.
 
 Local correctness comes first; cloud CI is evidence, not the only way to verify
 work.
@@ -145,6 +168,7 @@ work.
 | [`docs/ASSET_PROVENANCE.md`](docs/ASSET_PROVENANCE.md) | asset pipeline and provenance policy |
 | [`docs/PRIVACY_AND_PERSISTENCE.md`](docs/PRIVACY_AND_PERSISTENCE.md) | local-first privacy contract and persistence rules |
 | [`docs/RELEASE_CONTRACT.md`](docs/RELEASE_CONTRACT.md) | games-site host, promotion, and rollback contract |
+| [`docs/TOOLCHAIN_AND_SUPPORT.md`](docs/TOOLCHAIN_AND_SUPPORT.md) | Node, dependency-pinning, and browser-support policy; what is and is not claimed |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | frozen decision log |
 | [`docs/ACCEPTANCE_EVIDENCE_MATRIX.md`](docs/ACCEPTANCE_EVIDENCE_MATRIX.md) | per-story required evidence |
 | [`docs/STATUS.md`](docs/STATUS.md) | current phase and open dependencies |

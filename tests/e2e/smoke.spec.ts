@@ -215,7 +215,9 @@ test.describe("keyboard path", () => {
     await page.goto("/");
     await page.getByRole("heading", { level: 1 }).waitFor();
 
-    // First tab stop is the skip link.
+    // First tab stop is the skip link. This is a real cross-engine assertion: plain
+    // links are not in WebKit's sequential focus order, so it only holds because the
+    // link carries an explicit tabindex (src/ui/App.tsx).
     await page.keyboard.press("Tab");
     const focusedTag = await page.evaluate(() => document.activeElement?.className ?? "");
     expect(focusedTag).toContain("ps-skip-link");
@@ -226,5 +228,20 @@ test.describe("keyboard path", () => {
     await page.keyboard.press("Enter");
     await expect(briefingButton).toBeDisabled();
     await expect(page.getByTestId("briefing-panel")).toContainText("foundation-briefing");
+  });
+
+  test("the skip link actually moves focus past the repeated header", async ({ page }) => {
+    await pinToWebGL2(page);
+    await page.goto("/");
+    await page.getByRole("heading", { level: 1 }).waitFor();
+
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Enter");
+
+    // A skip link that only scrolls is not a bypass mechanism; focus must land in the
+    // main region, otherwise the learner's next Tab returns to the header they were
+    // trying to skip.
+    const focusedId = await page.evaluate(() => document.activeElement?.id ?? null);
+    expect(focusedId).toBe("main");
   });
 });

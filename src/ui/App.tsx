@@ -148,7 +148,21 @@ export function App() {
 
   return (
     <>
-      <a className="ps-skip-link" href="#main">
+      {/*
+        `tabindex={0}` is deliberate and load-bearing.
+
+        WebKit excludes plain links from sequential focus navigation, following the
+        macOS convention where Tab visits form controls but not links. Without an
+        explicit tabindex, a keyboard-only Safari learner pressing Tab skips straight
+        past this link to the quality selector — the bypass mechanism (WCAG 2.4.1)
+        would simply not exist for them. Verified in a real WebKit run: the link is
+        skipped without it and is the first tab stop with it.
+
+        It is `0`, never a positive value: a positive tabindex would reorder focus
+        against DOM order. In Chromium and Firefox this matches the link's natural
+        focusability, so nothing changes there.
+      */}
+      <a className="ps-skip-link" href="#main" tabIndex={0}>
         Skip to the survey workstation
       </a>
 
@@ -168,7 +182,7 @@ export function App() {
         </div>
       </header>
 
-      <main id="main" className={styles.main}>
+      <main id="main" className={styles.main} tabIndex={-1}>
         <StatusRegion message={announcement} />
 
         <div className={styles.grid}>

@@ -1,4 +1,21 @@
+import { cpus } from "node:os";
+
 import { defineConfig, devices } from "@playwright/test";
+
+/**
+ * Worker count is deliberately capped well below the core count.
+ *
+ * Each worker is a full Chromium driving WebGL through ANGLE/SwiftShader, which is
+ * pure CPU work: every worker renders a live frame loop at display rate while the
+ * main thread also loads and parses a multi-megabyte Babylon chunk. Unbounded
+ * parallelism therefore oversubscribes the CPU and starves the very frame loop
+ * these tests assert on, producing timeouts that look like product defects and are
+ * not. Observed locally: 10 workers turned a 2-second a11y test into a 60-second
+ * timeout; 2 workers ran the entire accessibility suite in 5.4 seconds.
+ *
+ * Half the cores, hard-capped, keeps headroom so timing assertions stay meaningful.
+ */
+const WORKERS = Math.max(1, Math.min(4, Math.floor(cpus().length / 2)));
 
 /**
  * Real-browser verification for Planetary Survey.
@@ -21,7 +38,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  ...(process.env.CI ? { workers: 2 } : {}),
+  workers: WORKERS,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
   timeout: 60_000,
   expect: { timeout: 15_000 },

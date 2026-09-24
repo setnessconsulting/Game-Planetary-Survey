@@ -5,6 +5,10 @@ playwright-report/
 test-results/
 blob-report/
 .vite/
+
+# Generated measurement output from `npm run report:bundle`. It is derived from
+# dist/ on every run and asserted there, so committing it would only add churn.
+reports/
 *.local
 *.log
 
