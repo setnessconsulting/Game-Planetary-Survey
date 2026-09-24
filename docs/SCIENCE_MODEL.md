@@ -122,8 +122,11 @@ value. It may be used only to *find* the primary source.
 
 ### 5.2 Per-field source register (required)
 
-PS-03 builds it; PS-04 populates it; PS-08 and PS-12 consume it. Every displayed
-scientific value must be traceable to a register entry with at least:
+PS-03 builds it; PS-04 populates it; PS-08 and PS-12 consume it. The schema, the
+source policy, and the validation that enforces this table are specified in
+[`SOURCE_REGISTER.md`](SOURCE_REGISTER.md); the entries themselves live in
+`src/content/provenance.ts`. Every displayed scientific value must be traceable to
+a register entry with at least:
 
 | Field | Meaning |
 |---|---|

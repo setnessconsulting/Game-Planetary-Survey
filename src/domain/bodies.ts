@@ -13,6 +13,14 @@ import type { Quantity, Unit } from "./quantities";
 export type BodyId = string;
 
 /**
+ * How far a value has been through independent science review.
+ *
+ * `contested` is a first-class state: a disputed value is shown as disputed or
+ * withheld, never quietly promoted to `reviewed` (docs/SCIENCE_MODEL.md §5.2).
+ */
+export type ReviewStatus = "unreviewed" | "reviewed" | "contested";
+
+/**
  * A scientific value that is traceable to an authority.
  *
  * `sourceId` points at a per-field source-register entry. `significantDigits` is
@@ -25,7 +33,7 @@ export interface SourcedValue {
   readonly significantDigits: number;
   /** Reference epoch/orbit when the value is time-dependent. */
   readonly appliesToEpoch?: string;
-  readonly reviewStatus: "unreviewed" | "reviewed" | "contested";
+  readonly reviewStatus: ReviewStatus;
 }
 
 export interface BodyRecord {

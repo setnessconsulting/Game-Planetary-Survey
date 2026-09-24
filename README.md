@@ -23,19 +23,23 @@ measurement evidence.
 | Phase | Story | State |
 |---|---|---|
 | Contract freeze | GAME-363 / PS-01 | complete — this `docs/` set |
-| Executable foundation | GAME-364 / PS-02 | in review |
-| games-site host contract | GAME-365 / PS-HOST | blocked by PS-02 |
-| Science registry | GAME-366 / PS-03 | blocked by PS-02 |
-| Design preproduction | GAME-367 / PS-DESIGN | blocked by PS-02 |
+| Executable foundation | GAME-364 / PS-02 | complete |
+| games-site host contract | GAME-365 / PS-HOST | complete |
+| Science registry | GAME-366 / PS-03 | complete — layer built; entries arrive with PS-04 |
+| Design preproduction | GAME-367 / PS-DESIGN | ready |
+| Canonical bodies/missions | GAME-368 / PS-04 | next |
 
 Live status is tracked in Jira and summarized in [`docs/STATUS.md`](docs/STATUS.md).
 
-**This repository is in the contract/foundation phase.** The application skeleton,
-boundaries, seams, and verification gate exist and run; **there is no playable
-build yet, and no planetary value is shipped**. The body catalogue is deliberately
-empty until PS-03/PS-04 author it and science-review it, because an unsourced
-number would be worse than no number. The `docs/` directory is the binding product,
-science, and architecture contract that all downstream work must honor.
+**There is no playable build yet, and no planetary value is shipped.** The
+application skeleton, boundaries, seams, and verification gate exist and run, and
+the source-of-truth layer — register, units, derived values, distortion metadata,
+deterministic data snapshots, and validation — is in place and enforced. The body
+catalogue and the source register are still deliberately empty until PS-04 authors
+them and science-reviews them, because an unreviewed citation would look like
+provenance without being provenance, and an unsourced number is worse than no
+number. The `docs/` directory is the binding product, science, and architecture
+contract that all downstream work must honor.
 
 ## Scope boundaries
 
@@ -92,8 +96,9 @@ or tilde ranges, so `npm ci` reproduces the reviewed graph byte for byte
 
 ```text
 src/
-  domain/     pure TypeScript science/mission authority (no React, no Babylon, no DOM)
-  content/    authored bodies/missions/claims + schemas
+  domain/     pure TypeScript science/mission authority (no React, no Babylon, no DOM):
+              register + units + derived values + distortion metadata + snapshots
+  content/    authored bodies/missions/claims, and the per-field source register
   renderer/   Babylon adapter: scene, camera, materials, asset loading, instrumentation
   ui/         React semantic application shell
   audio/      game-owned audio service
@@ -158,6 +163,7 @@ work.
 |---|---|
 | [`docs/PRD.md`](docs/PRD.md) | product vision, learner, core loop, v1 scope, non-goals, body criteria |
 | [`docs/SCIENCE_MODEL.md`](docs/SCIENCE_MODEL.md) | NGSS matrix, learning objectives, source authority, simplification policy |
+| [`docs/SOURCE_REGISTER.md`](docs/SOURCE_REGISTER.md) | source register schema and policy, canonical units, derived values, distortion metadata, determinism |
 | [`docs/TECHNICAL_DESIGN.md`](docs/TECHNICAL_DESIGN.md) | architecture, layer boundaries, data flow, state ownership, hosting boundary |
 | [`docs/TECHNOLOGY_DECISIONS.md`](docs/TECHNOLOGY_DECISIONS.md) | technology ADR, version policy, rejected technologies |
 | [`docs/RENDERING_QUALITY_STRATEGY.md`](docs/RENDERING_QUALITY_STRATEGY.md) | renderer baseline, WebGPU policy, quality tiers, atmosphere policy, asset loading |
@@ -184,12 +190,18 @@ Rules that are not negotiable:
 - a value with no register entry cannot ship;
 - previously known values are not exempt from sourcing;
 - imagery illustrates a sourced value and is never the source of it;
+- a source outside the preferred agencies may *locate* an authority and may never
+  *be* one;
 - simplifications are licensed with a source, rationale, model boundary, and a
   learner-facing explanation;
 - NASA/USGS branding is not part of this product's identity, and the game must not
   appear officially sponsored or endorsed by any agency.
 
-See [`docs/SCIENCE_MODEL.md`](docs/SCIENCE_MODEL.md) and
+The mechanism is code, not convention: `src/domain/sources.ts` and
+`src/domain/register.ts` define and validate the register, `src/content/provenance.ts`
+holds the entries, and the automated checks fail the build on an uncited or
+impossible value. See [`docs/SOURCE_REGISTER.md`](docs/SOURCE_REGISTER.md),
+[`docs/SCIENCE_MODEL.md`](docs/SCIENCE_MODEL.md), and
 [`docs/ASSET_PROVENANCE.md`](docs/ASSET_PROVENANCE.md).
 
 ## Contributing rules
