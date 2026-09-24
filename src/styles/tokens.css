@@ -1,0 +1,90 @@
+/**
+ * Design tokens.
+ *
+ * Tokens exist for type scale, spacing, elevation, FOCUS, motion, and semantic
+ * mission states — including non-color encodings, because no required
+ * distinction may be carried by color alone (docs/ACCESSIBILITY.md A-9).
+ *
+ * These are foundation tokens, not the production visual system. PS-DESIGN
+ * (GAME-367) owns the Figma-authored workstation/HUD treatment; until that file
+ * is linked, nothing here may be described as visually approved.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surface + text */
+  --ps-surface-0: #070a0e;
+  --ps-surface-1: #0d1218;
+  --ps-surface-2: #141b23;
+  --ps-surface-3: #1c252f;
+  --ps-border: #2a3642;
+  --ps-border-strong: #3d4c5c;
+
+  --ps-text: #e8eef5;
+  --ps-text-muted: #a3b1c0;
+  --ps-text-subtle: #7c8b9c;
+
+  /* Accents. Never the sole carrier of meaning. */
+  --ps-accent: #6fb4ff;
+  --ps-accent-strong: #9cccff;
+  --ps-instrument: #ffc46b;
+  --ps-evidence: #7ee0b8;
+  --ps-caution: #ffd166;
+
+  /* Focus: high contrast, always visible, never removed for aesthetics. */
+  --ps-focus-ring: #ffd166;
+  --ps-focus-width: 3px;
+  --ps-focus-offset: 2px;
+
+  /* Type scale */
+  --ps-font-body:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ps-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --ps-text-xs: 0.78rem;
+  --ps-text-sm: 0.875rem;
+  --ps-text-base: 1rem;
+  --ps-text-lg: 1.15rem;
+  --ps-text-xl: 1.4rem;
+  --ps-text-2xl: 1.85rem;
+
+  --ps-leading-tight: 1.25;
+  --ps-leading-normal: 1.55;
+
+  /* Spacing */
+  --ps-space-1: 0.25rem;
+  --ps-space-2: 0.5rem;
+  --ps-space-3: 0.75rem;
+  --ps-space-4: 1rem;
+  --ps-space-5: 1.5rem;
+  --ps-space-6: 2rem;
+  --ps-space-7: 3rem;
+
+  --ps-radius-sm: 4px;
+  --ps-radius-md: 8px;
+  --ps-radius-lg: 14px;
+
+  --ps-shadow-1: 0 1px 2px rgb(0 0 0 / 45%);
+  --ps-shadow-2: 0 6px 18px rgb(0 0 0 / 45%);
+
+  /* Motion. Reduced motion sets these to near-zero; layout never depends on them. */
+  --ps-motion-fast: 120ms;
+  --ps-motion-base: 220ms;
+  --ps-motion-slow: 420ms;
+  --ps-ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* Non-color state encodings. Use these instead of relying on hue. */
+  --ps-marker-done: "\2713"; /* check */
+  --ps-marker-active: "\25B8"; /* right-pointing triangle */
+  --ps-marker-pending: "\00B7"; /* middle dot */
+  --ps-marker-blocked: "\2715"; /* cross */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ps-motion-fast: 1ms;
+    --ps-motion-base: 1ms;
+    --ps-motion-slow: 1ms;
+  }
+}
