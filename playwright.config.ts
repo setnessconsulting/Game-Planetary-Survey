@@ -61,6 +61,12 @@ export default defineConfig({
             "--enable-unsafe-swiftshader",
             "--use-gl=angle",
             "--use-angle=swiftshader",
+            // Reproduce the no-WebGL2 degraded path on a machine that has WebGL2. The
+            // renderer suites branch on a real in-page WebGL2 probe, and headless
+            // Firefox/WebKit on Linux take the other branch — so this is how that
+            // branch is verified locally instead of only in CI. The reference-engine
+            // guard in tests/e2e/smoke.spec.ts fails while this is set, by design.
+            ...(process.env.PS_FORCE_NO_WEBGL ? ["--disable-webgl", "--disable-webgl2"] : []),
           ],
         },
       },

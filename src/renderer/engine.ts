@@ -37,6 +37,16 @@ export interface CreateEngineOptions {
   readonly canvas: HTMLCanvasElement;
   /** Requested backend from the capability probe. */
   readonly backend: RendererBackend;
+  /**
+   * Mutable sink the caller owns, appended to as backends are tried.
+   *
+   * This is an out-parameter on purpose: when every backend fails this function
+   * throws, and a thrown error would otherwise discard the record of what was
+   * attempted. Without it, a learner whose WebGPU attempt failed and whose WebGL2
+   * attempt then failed is told only "WebGL2 initialization failed", which hides
+   * half of what happened.
+   */
+  readonly notes: string[];
 }
 
 /**
@@ -47,7 +57,7 @@ export interface CreateEngineOptions {
  * (docs/TECHNICAL_DESIGN.md §6.4).
  */
 export async function createEngineFor(options: CreateEngineOptions): Promise<EngineInitResult> {
-  const notes: string[] = [];
+  const { notes } = options;
 
   if (options.backend === "webgpu") {
     const webgpu = await tryCreateWebGPU(options.canvas, notes);

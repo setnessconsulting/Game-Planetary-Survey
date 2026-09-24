@@ -30,6 +30,7 @@ import {
   type CapabilityReport,
   type RendererBackend,
 } from "@/platform/capabilities";
+
 import {
   observeVisibility,
   prefersReducedMotion,
@@ -125,7 +126,12 @@ export function App() {
         setAnnouncement(event.reason);
         return;
       case "failed":
-        setBackendInUse(event.backend);
+        // Nothing is rendering, so nothing is "in use" — even though the renderer can
+        // say which backend it tried and lost. Reporting the attempted backend here
+        // would put a backend name in the System check next to a blank viewport, which
+        // is the same class of lie as reporting the probe's request as fact. The
+        // attempt itself is named in the explanation the learner is given.
+        setBackendInUse("unavailable");
         setAnnouncement(event.reason);
         return;
       default: {

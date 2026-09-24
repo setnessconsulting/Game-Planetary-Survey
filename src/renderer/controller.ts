@@ -83,18 +83,22 @@ export async function createRendererController(
 
   let engine;
   let backend: RendererBackend;
-  let notes: readonly string[];
+  // Owned here and passed in, so the record of what was attempted survives a throw
+  // (see CreateEngineOptions.notes).
+  const notes: string[] = [];
   try {
-    const result = await createEngineFor({ canvas, backend: capabilities.backend });
+    const result = await createEngineFor({ canvas, backend: capabilities.backend, notes });
     engine = result.engine;
     backend = result.backend;
-    notes = result.notes;
   } catch (error) {
     // `RendererEngineError` knows which backend it tried and failed on; anything
     // else is reported against the requested backend rather than invented.
     const failedBackend: RendererBackend =
       error instanceof RendererEngineError ? error.backend : capabilities.backend;
-    const reason = error instanceof Error ? error.message : String(error);
+    const detail = error instanceof Error ? error.message : String(error);
+    // A learner who reached a total failure still deserves the whole story: the
+    // attempt history is why the message names more than one backend.
+    const reason = [detail, ...notes].join(" ");
     onEvent?.({ kind: "failed", reason, backend: failedBackend });
     throw error;
   }

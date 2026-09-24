@@ -47,6 +47,30 @@ async function pinToUnusableWebGPU(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Does this environment actually provide WebGL2?
+ *
+ * Not every engine in CI can: headless Firefox and WebKit on Linux provide no WebGL2
+ * (no GPU and no software GL), whereas Chromium reaches it through ANGLE/SwiftShader.
+ * That is a property of the machine running the test, not of the game, so the
+ * renderer assertions branch on this measurement instead of assuming an engine list.
+ * Both branches assert a real contract, so neither can silently pass.
+ */
+async function hasWebGL2(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    try {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("webgl2");
+      if (!context) return false;
+      const lose = (canvas as HTMLCanvasElement & { loseContext?: () => void }).loseContext;
+      if (typeof lose === "function") lose.call(canvas);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
+
 /** Remove every 3D backend, so the honest-failure path is genuinely reached. */
 async function pinToNoRenderer(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -69,6 +93,24 @@ async function pinToNoRenderer(page: Page): Promise<void> {
 }
 
 test.describe("planetary survey shell", () => {
+  test("the required WebGL2 baseline is genuinely present in the reference engine", async ({
+    page,
+  }, testInfo) => {
+    // Chromium is the reference engine for the WebGL2 baseline, and it reaches WebGL2
+    // through ANGLE/SwiftShader. If that ever stops being true here, the renderer
+    // assertions below would quietly start exercising the degraded branch instead of
+    // the baseline, so this fails loudly rather than letting coverage evaporate.
+    test.skip(
+      testInfo.project.name !== "chromium",
+      "Chromium is the WebGL2 reference engine; other engines lack software WebGL in CI.",
+    );
+    await page.goto("/");
+    expect(
+      await hasWebGL2(page),
+      "the WebGL2 baseline must remain available in the reference engine",
+    ).toBe(true);
+  });
+
   test("boots, renders the shell, and drives a live frame loop on the WebGL2 baseline", async ({
     page,
   }) => {
@@ -84,28 +126,43 @@ test.describe("planetary survey shell", () => {
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planetary Survey");
 
-    // The renderer must actually reach the ready state in a real browser.
-    await expect(page.getByTestId("renderer-viewport")).toHaveAttribute(
-      "data-viewport-state",
-      "ready",
-      { timeout: 20_000 },
-    );
+    if (await hasWebGL2(page)) {
+      // The renderer must actually reach the ready state in a real browser.
+      await expect(page.getByTestId("renderer-viewport")).toHaveAttribute(
+        "data-viewport-state",
+        "ready",
+        { timeout: 20_000 },
+      );
 
-    // WebGPU is pinned off above, so this is the required WebGL2 baseline.
-    await expect(page.getByTestId("renderer-status")).toContainText("WEBGL2");
-    await expect(page.getByTestId("diag-backend")).toHaveText("webgl2");
-    await expect(page.getByTestId("diag-backend-requested")).toHaveText("webgl2");
+      // WebGPU is pinned off above, so this is the required WebGL2 baseline.
+      await expect(page.getByTestId("renderer-status")).toContainText("WEBGL2");
+      await expect(page.getByTestId("diag-backend")).toHaveText("webgl2");
+      await expect(page.getByTestId("diag-backend-requested")).toHaveText("webgl2");
 
-    const diagnostics = page.getByTestId("renderer-diagnostics");
-    await expect(diagnostics).toHaveAttribute("data-renderer-backend", "webgl2");
+      const diagnostics = page.getByTestId("renderer-diagnostics");
+      await expect(diagnostics).toHaveAttribute("data-renderer-backend", "webgl2");
 
-    // Prove the frame loop is genuinely running (and therefore owned by Babylon).
-    const first = Number(await diagnostics.getAttribute("data-renderer-frames"));
-    await page.waitForTimeout(1200);
-    const second = Number(await diagnostics.getAttribute("data-renderer-frames"));
-    expect(second).toBeGreaterThan(first);
+      // Prove the frame loop is genuinely running (and therefore owned by Babylon).
+      const first = Number(await diagnostics.getAttribute("data-renderer-frames"));
+      await page.waitForTimeout(1200);
+      const second = Number(await diagnostics.getAttribute("data-renderer-frames"));
+      expect(second).toBeGreaterThan(first);
+    } else {
+      // This environment has no WebGL2, so the contract under test is the honest
+      // degradation one. Asserting it here keeps the branch meaningful instead of
+      // skipping, which would hide a regression in the degraded path.
+      await expect(page.getByTestId("renderer-viewport")).toHaveAttribute(
+        "data-viewport-state",
+        "unavailable",
+        { timeout: 20_000 },
+      );
+      await expect(page.getByTestId("renderer-overlay")).toContainText(
+        "cannot start the 3D survey view",
+      );
+      await expect(page.getByTestId("diag-backend")).toHaveText("unavailable");
+    }
 
-    // Prove the shell is complete without depending on the 3D view.
+    // Prove the shell is complete and usable either way.
     await expect(page.getByTestId("briefing-panel")).toBeVisible();
     await expect(page.getByTestId("evidence-notebook")).toBeVisible();
     await expect(page.getByTestId("loop-checklist").locator("li")).toHaveCount(11);
@@ -120,32 +177,49 @@ test.describe("planetary survey shell", () => {
     await pinToUnusableWebGPU(page);
     await page.goto("/");
 
-    await expect(page.getByTestId("renderer-viewport")).toHaveAttribute(
-      "data-viewport-state",
-      "ready",
-      { timeout: 20_000 },
-    );
-
-    // The probe requested the enhancement path...
+    // The probe requested the enhancement path in every environment...
     await expect(page.getByTestId("diag-backend-requested")).toHaveText("webgpu");
     await expect(page.getByTestId("diag-webgpu")).toHaveText(
       "API present, but no usable adapter confirmed",
     );
 
-    // ...and the renderer reports what actually happened, not what was requested.
-    await expect(page.getByTestId("diag-backend")).toHaveText("webgl2");
-    await expect(page.getByTestId("renderer-diagnostics")).toHaveAttribute(
-      "data-renderer-backend",
-      "webgl2",
-    );
-    await expect(page.getByTestId("renderer-status")).toContainText("WEBGL2");
+    if (await hasWebGL2(page)) {
+      await expect(page.getByTestId("renderer-viewport")).toHaveAttribute(
+        "data-viewport-state",
+        "ready",
+        { timeout: 20_000 },
+      );
 
-    // The fallback must be explained, not silent.
+      // ...and the renderer reports what actually happened, not what was requested.
+      await expect(page.getByTestId("diag-backend")).toHaveText("webgl2");
+      await expect(page.getByTestId("renderer-diagnostics")).toHaveAttribute(
+        "data-renderer-backend",
+        "webgl2",
+      );
+      await expect(page.getByTestId("renderer-status")).toContainText("WEBGL2");
+
+      // The highest tier requires a CONFIRMED backend, so it must be refused here even
+      // though the device may report plenty of memory and cores.
+      await expect(page.getByTestId("diag-quality")).not.toHaveText("high");
+    } else {
+      // WebGPU is exposed but unusable AND there is no WebGL2. The app only discovers
+      // this by trying, so the honest terminal state is "failed" (with an explanation)
+      // rather than "unavailable", which means "we knew before trying". Either way it
+      // must not report a backend as in use, because nothing is rendering.
+      await expect(page.getByTestId("renderer-viewport")).toHaveAttribute(
+        "data-viewport-state",
+        /failed|unavailable/,
+        { timeout: 20_000 },
+      );
+      await expect(page.getByTestId("renderer-overlay")).toBeVisible();
+      await expect(page.getByTestId("diag-backend")).toHaveText("unavailable");
+
+      // The failed attempt must not be reported as a working backend.
+      await expect(page.getByTestId("diag-quality")).not.toHaveText("high");
+    }
+
+    // The fallback or the refusal must be explained, not silent.
     await expect(page.getByRole("status").first()).toContainText("WebGPU");
-
-    // The highest tier requires a CONFIRMED WebGPU backend, so it must be refused
-    // here even though the device reports plenty of memory and cores.
-    await expect(page.getByTestId("diag-quality")).not.toHaveText("high");
 
     // The accessible route is unaffected by which backend runs.
     await expect(page.getByTestId("loop-checklist").locator("li")).toHaveCount(11);
@@ -156,7 +230,7 @@ test.describe("planetary survey shell", () => {
     await page.goto("/");
     await expect(page.getByTestId("renderer-viewport")).toHaveAttribute(
       "data-viewport-state",
-      "ready",
+      /ready|unavailable/,
       { timeout: 20_000 },
     );
 
