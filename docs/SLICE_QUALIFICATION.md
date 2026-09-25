@@ -155,9 +155,15 @@ pass: the entire slice completes with no 3D backend at all.
 ```bash
 npm run build && npm run report:bundle        # the bundle the evidence is measured against
 npx playwright test --config=playwright.config.ts --grep @slice --workers=1
-npm run test:e2e                              # the same suite as part of the full browser gate
+npm run test:e2e                              # build + bundle report + all engines: the full browser gate
 npm run verify                                # static, unit, coverage, architecture, build, manifests
 ```
+
+`test:e2e` generates `reports/bundle-size.json` before running the browser suites,
+because `sliceEvidence.spec.ts` records the exact bundle it measured against: a
+measurement whose bundle is missing is not evidence. Running the spec directly
+therefore requires `npm run build && npm run report:bundle` first, and the spec fails
+with that instruction rather than recording a number it cannot attribute.
 
 `reports/` is gitignored by policy: the artefact is derived from `dist/` plus the run
 and asserted in the spec, so committing it would only add churn. The committed

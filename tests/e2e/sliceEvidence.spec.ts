@@ -30,6 +30,11 @@
  * from `dist/` plus this run and asserted here, so committing it would only add
  * churn. The committed evidence is this spec, and the durable per-run record is
  * copied to `_evidence/planetary-survey-ps09/`.
+ *
+ * Because it consumes `reports/bundle-size.json`, `npm run test:e2e` generates that
+ * report before running the browser suites. A measurement whose bundle is missing
+ * would not be evidence, so this spec refuses to record one: run
+ * `npm run build && npm run report:bundle` first when running it directly.
  */
 
 import { execSync } from "node:child_process";
