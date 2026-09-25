@@ -322,11 +322,16 @@ original*. As rules:
 ## 10. What this handoff does not claim
 
 - **No visual approval.** Nothing here has been through a human visual review, and
-  no Figma file exists to compare against. PS-09 and PS-14 own that evidence.
-- **No art assets.** No planetary mesh, texture, icon set, or illustration has been
-  produced; the asset manifest is deliberately empty and PS-10 owns the pipeline.
-- **No renderer implementation.** The 3D surfaces are specified, not built. PS-05
-  owns them, and the tokens and inventory are what it implements against.
+  no Figma file exists to compare against. PS-09 qualified the slice technically
+  without closing this; human visual sign-off is PS-14's.
+- **No production art.** No planetary mesh, texture, icon set, or illustration has
+  been produced. PS-05 shipped generated placeholders in the asset manifest — the
+  guided-mission slice deliberately runs on them — and PS-10 owns the production
+  pipeline and the "no placeholders" criterion (D-34).
+- **No renderer implementation.** The 3D surfaces are specified here, not built by
+  this handoff. PS-05 built them against these tokens and this inventory; the
+  renderer's real-browser evidence is `tests/e2e/smoke.spec.ts` and, for the slice,
+  `tests/e2e/verticalSlice.spec.ts`.
 - **No target-age validation.** The legibility and comprehension reasoning in §3 and
   §8 is reasoning, not evidence. A target-age playtest is PS-14's, and
   `docs/ACCEPTANCE_EVIDENCE_MATRIX.md` forbids automation from substituting for it.

@@ -632,3 +632,35 @@ same digest discipline as the rest of the mission.
 appear in traces; every `sourced` fact carries its register ids; the completion
 summary carries no clock, device, identity, or free text, so a later host integration
 can consume it without importing learner work.
+
+## D-40 — A met mission target requires the mission's own evidence, not just a
+supported claim
+
+**Decision:** `CompletionSummary.targetMet` is true only when the claim is
+`supported` **and** every observation in the mission's `claimTarget.requiredEvidence`
+is cited. `requiredEvidenceGaps(mission, claim, records)` (`src/domain/debrief.ts`) is
+the single reader of that field, and `MissionDebrief.missingRequiredEvidence` names
+what is still uncited, in the mission's authored order. Completion itself is
+unchanged: any evaluated claim still reaches `debrief` and `complete` (D-35), and
+revision is still offered, so the recovery is "measure the world you have not cited",
+not a restart.
+
+**Rationale:** Qualifying the PS-09 vertical slice found that the field was declared
+and validated but never read. A guided-mission run that measured and cited only Mars
+and Venus reported `phase=complete, verdict=supported, targetMet=true,
+observationsCaptured=2 of 3, citationProblems=[]` — while `src/content/missions.ts`
+stated that the mapping from `claimTarget.requiredEvidence` to
+`requiredObservations` made "you cannot finish this without measuring" *enforced*,
+and the mission's brief tells the learner they cannot conclude until all three worlds
+are measured. The anti-guessing rule held at the claim layer and leaked at the mission
+layer. A gate story is exactly where that has to surface.
+
+**Consequence:** The same slice qualification found a second gap that this decision
+makes load-bearing: the state machine allows `selectTarget` from `claimDrafting` and
+`debrief` — the "return to measurement" recovery of `docs/UX_USER_FLOW.md` step 11 —
+but the shell disabled target selection in those phases, so the D-40 recovery was
+unreachable through the UI. The shell now offers what the state machine permits. Both
+behaviours are pinned by tests at the domain, content-trace, shell, and real-browser
+levels, and `tests/content/sliceGate.test.ts` makes "every shipped mission reaches a
+met target along its own authored path" a build-time property — which is the
+mechanical form of the hard gate before content expansion.

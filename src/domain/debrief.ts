@@ -63,6 +63,11 @@ export interface MissionDebrief {
   readonly dimensions: ClaimDimensions;
   readonly explanation: string;
   readonly citationProblems: readonly string[];
+  /**
+   * The mission's own required observations that this claim does not cite, in the
+   * mission's authored order. Empty when the target's evidence is complete (D-40).
+   */
+  readonly missingRequiredEvidence: readonly string[];
   readonly comparedValues: readonly DebriefValue[];
   /** Cited observations that carry the verdict; empty when the citation fell short. */
   readonly supportingEvidenceIds: readonly string[];
@@ -85,6 +90,38 @@ export interface BuildDebriefInput {
 }
 
 /**
+ * The mission's own required observations that a claim does not cite.
+ *
+ * `MissionDefinition.claimTarget.requiredEvidence` states what a mission's claim
+ * needs before it counts, and `validateMissionDefinition` keeps those keys drawn
+ * from `requiredObservations` — but nothing used to *read* the field at runtime.
+ * `evaluateClaim` only checks the two worlds a claim compares, so a mission whose
+ * target also names a third world could be reported as `targetMet` with that world
+ * never measured: `survey-001-sizes` names `moon.meanRadius`, and a run that took
+ * only Mars and Venus reported `targetMet: true` with two of three observations
+ * captured (found by the PS-09 vertical-slice qualification, recorded as D-40).
+ *
+ * This is the missing reader. Keys come back in the mission's authored order, so a
+ * caller can name them to the learner in the order the brief introduced them.
+ *
+ * Pure: no clock, no renderer, no I/O.
+ */
+export function requiredEvidenceGaps(
+  mission: MissionDefinition,
+  claim: Claim | null,
+  records: readonly EvidenceRecord[],
+): readonly string[] {
+  const cited = new Set(
+    claim
+      ? citedRecords(records, claim.citedEvidenceIds).map((record) =>
+          observationKey(record.bodyId, record.attributeId),
+        )
+      : [],
+  );
+  return mission.claimTarget.requiredEvidence.filter((key) => !cited.has(key));
+}
+
+/**
  * Build the debrief for a submitted claim.
  *
  * Pure. The verdict and dimensions are carried through from `evaluateClaim`
@@ -104,6 +141,8 @@ export function buildMissionDebrief(input: BuildDebriefInput): MissionDebrief {
   const covered = evaluation.dimensions.citationCoverage;
   const consistent = evaluation.dimensions.reasoningConsistency;
 
+  const missingRequiredEvidence = requiredEvidenceGaps(mission, claim, records);
+
   const supportingEvidenceIds = consistent ? attributed.map((record) => record.id) : [];
   const refutingEvidenceIds = covered && !consistent ? attributed.map((record) => record.id) : [];
   // When the citation fell short there is no verdict to attribute, but an on-topic
@@ -122,6 +161,7 @@ export function buildMissionDebrief(input: BuildDebriefInput): MissionDebrief {
     dimensions: evaluation.dimensions,
     explanation: evaluation.explanation,
     citationProblems: [...evaluation.citationProblems],
+    missingRequiredEvidence: [...missingRequiredEvidence],
     comparedValues: evaluation.comparedValues.map((entry) => ({
       bodyId: entry.bodyId,
       attributeId: claim.attributeId,
@@ -177,7 +217,12 @@ export interface CompletionSummary {
   readonly hintsUsed: number;
   readonly observationsRequired: number;
   readonly observationsCaptured: number;
-  /** The mission's claim target was actually supported by cited evidence. */
+  /**
+   * The mission's claim target was actually met: the claim was `supported` **and**
+   * the mission's own `requiredEvidence` is fully cited (D-40). A supported claim
+   * that leaves one of the mission's required observations uncited does not count
+   * as the target — the debrief names what is still missing.
+   */
   readonly targetMet: boolean;
 }
 
@@ -237,6 +282,11 @@ export function buildCompletionSummary(input: BuildCompletionInput): CompletionS
     hintsUsed,
     observationsRequired: mission.requiredObservations.length,
     observationsCaptured,
-    targetMet: evaluation?.verdict === "supported",
+    // A supported claim is not the same as a met target: the mission's own required
+    // evidence has to be cited too, or the learner has been told they finished a
+    // mission while a measurement it asks for was never made (D-40).
+    targetMet:
+      evaluation?.verdict === "supported" &&
+      requiredEvidenceGaps(mission, claim, evidence).length === 0,
   };
 }

@@ -8,7 +8,7 @@ Canonical repository: `setnessconsulting/Game-Planetary-Survey` (`main`)
 
 ## Current phase
 
-**Current phase: mission engine — claim, citation, debrief, hints, and recovery (PS-08) complete on canonical main.**
+**Current phase: guided-mission vertical slice (PS-09) complete on canonical main — the hard gate before content expansion is satisfied.**
 
 The repository contains:
 
@@ -41,14 +41,23 @@ The repository contains:
   explicit evidence citation counted as a learner choice, submit and evaluation, a
   debrief built from the mission's own source-traceable facts, a bounded completion
   summary, progressive content-driven hints, and revision that reopens the claim in
-  place (**PS-08** / GAME-372).
+  place (**PS-08** / GAME-372);
+- the qualified guided-mission vertical slice: one complete mission playable brief to
+  completion in a real browser on the required WebGL2 baseline, with the same loop
+  proven with no 3D backend at all, an axe scan at every phase, a software-rendered
+  performance baseline written as an artefact, and a build-time gate that every
+  shipped mission is playable to a met target along its own authored path
+  (**PS-09** / GAME-373, [`SLICE_QUALIFICATION.md`](SLICE_QUALIFICATION.md)).
 
 Authored missions load into the workstation. Learners can select a mission-offered
 instrument, measure with honest unavailable paths, capture evidence, compare worlds
 on a semantic table, draft a claim, cite the evidence behind it, submit it for
 evaluation, read a sourced debrief, and finish the mission — revising in place if
-their citation or reasoning fell short. Guided-mission production art and target-age
-qualification remain PS-09's. Independent science review remains outstanding.
+their citation or reasoning fell short, and going back to measure a world the
+mission's target still needs. Target-age qualification, human visual review, and
+GPU-qualified performance evidence remain outstanding, and guided-mission production
+art belongs to PS-10's asset pipeline. Independent science review remains
+outstanding.
 
 **No independent science review has occurred.** Every value is transcribed from an
 agency source and machine-checked for physical plausibility; none has been checked
@@ -70,9 +79,9 @@ is the material prepared for that review, and
 | GAME-370 | PS-06 — instruments/evidence capture | **complete** | GAME-370; instrument → measure → capture in shell; science review not claimed |
 | GAME-371 | PS-07 — notebook/comparison/a11y equivalents | **complete** | GAME-371; comparison board + a11y through compare; science/visual review not claimed |
 | GAME-372 | PS-08 — mission engine/claim/citation/debrief | **complete** | GAME-372; claim → cite → submit → debrief → complete in the shell; constraints 6–7 closed; science/visual review not claimed |
-| GAME-373 | PS-09 — guided-mission vertical slice | blocked | hard gate before content expansion |
-| GAME-374 | PS-10 — visual/motion/audio polish | blocked | by PS-09 |
-| GAME-375 | PS-11 — independent missions/depth | blocked | by PS-09 |
+| GAME-373 | PS-09 — guided-mission vertical slice | **complete** | GAME-373; guided mission qualified end to end in a real browser; D-40 fixed the unenforced mission target the slice found; science/visual/playtest review not claimed |
+| GAME-374 | PS-10 — visual/motion/audio polish | ready | unblocked by PS-09; owns production art and the asset pipeline |
+| GAME-375 | PS-11 — independent missions/depth | ready | unblocked by PS-09 |
 | GAME-376 | PS-12 — consolidated qualification | blocked | by PS-10 + PS-11 |
 | GAME-377 | PS-13 — immutable preview candidate | blocked | by PS-12 |
 | GAME-378 | PS-14 — comparator/human review | blocked | by PS-13 |
@@ -101,10 +110,13 @@ is the material prepared for that review, and
    form is machine-checkable and versioned with the code; `DESIGN_SYSTEM.md` §1
    states plainly what that trade gives up — fast visual exploration, and a canvas a
    human can look at and approve. Nothing about the current visual direction has
-   been reviewed or approved by a person. Human visual sign-off and target-age
-   legibility evidence are PS-09's and PS-14's, and
+   been reviewed or approved by a person. PS-09 qualified the slice technically and
+   did **not** close this: human visual sign-off and target-age legibility evidence
+   are PS-14's, and the slice's own performance numbers are software-rendered until
+   PS-12 measures them on a real GPU or representative device
+   ([`SLICE_QUALIFICATION.md`](SLICE_QUALIFICATION.md) §6).
    [`ACCEPTANCE_EVIDENCE_MATRIX.md`](ACCEPTANCE_EVIDENCE_MATRIX.md) records the
-   absent artefact.
+   absent artefacts.
 
 4. **games-site positional parameter.** `isApprovedRelease` gained an eighth
    positional argument for the preview pointer in PS-HOST. It works and is tested,
@@ -131,7 +143,9 @@ is the material prepared for that review, and
 PS-01 decisions are closed (`DECISIONS.md` D-01…D-18); PS-02 and PS-03 added
 D-19…D-27; PS-04 added D-28…D-31; PS-DESIGN added D-32 and D-33; PS-05 added
 D-34; PS-08 added D-35…D-39 (mission completion semantics, in-place revision,
-named-credit scoring, progressive hints, and the debrief as a domain artefact). The outstanding-decision
+named-credit scoring, progressive hints, and the debrief as a domain artefact);
+PS-09 added D-40 (a met mission target requires the mission's own
+`claimTarget.requiredEvidence` to be cited, not only a supported claim). The outstanding-decision
 audit remains D-18: **no unresolved owner decision can materially change the runtime
 architecture or the v1 learning loop.**
 

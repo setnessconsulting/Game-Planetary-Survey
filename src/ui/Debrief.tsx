@@ -9,7 +9,7 @@
  * entries it came from.
  */
 
-import { ATTRIBUTES } from "@/domain/attributes";
+import { ATTRIBUTES, type AttributeId } from "@/domain/attributes";
 import type { BodyRecord } from "@/domain/bodies";
 import type { ClaimDimensions, ClaimVerdict } from "@/domain/claims";
 import type { CompletionSummary, MissionDebrief } from "@/domain/debrief";
@@ -31,6 +31,20 @@ export interface DebriefProps {
 
 function bodyLabel(bodies: readonly BodyRecord[], bodyId: string): string {
   return bodies.find((body) => body.id === bodyId)?.displayName ?? bodyId;
+}
+
+/**
+ * Turn a mission observation key (`moon.meanRadius`) into learner-facing words.
+ *
+ * The mission's `requiredEvidence` is authored as keys because that is what the
+ * catalogue can validate; a learner should never be shown `moon.meanRadius`.
+ */
+function observationLabel(bodies: readonly BodyRecord[], key: string): string {
+  const [bodyId, attributeId] = key.split(".");
+  if (!bodyId || !attributeId) return key;
+  const label =
+    attributeId in ATTRIBUTES ? ATTRIBUTES[attributeId as AttributeId].label : attributeId;
+  return `${bodyLabel(bodies, bodyId)} — ${label}`;
 }
 
 function verdictWord(verdict: ClaimVerdict): string {
@@ -116,6 +130,19 @@ export function Debrief({
         </div>
       ) : null}
 
+      {debrief.missingRequiredEvidence.length > 0 ? (
+        // A supported claim is not a met mission target (D-40): the mission's own
+        // required evidence has to be cited too, and here is what is still missing.
+        <div className={styles.caution} data-testid="debrief-missing-evidence">
+          <p>Still needed for this mission's claim target:</p>
+          <ul>
+            {debrief.missingRequiredEvidence.map((key) => (
+              <li key={key}>{observationLabel(bodies, key)}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {debrief.comparedValues.length > 0 ? (
         <table data-testid="debrief-values">
           <caption className={styles.visuallyHidden}>
@@ -195,7 +222,13 @@ export function Debrief({
           <dl className={styles.dimensions}>
             <div style={{ display: "contents" }}>
               <dt>Claim target</dt>
-              <dd>{completion.targetMet ? "Met by the cited evidence" : "Not yet supported"}</dd>
+              <dd data-testid="debrief-target-status">
+                {completion.targetMet
+                  ? "Met by the cited evidence"
+                  : debrief.verdict === "supported"
+                    ? "Supported, but not met — the mission asks for evidence this claim does not cite"
+                    : "Not yet supported"}
+              </dd>
             </div>
             <div style={{ display: "contents" }}>
               <dt>Observations kept</dt>
