@@ -1,0 +1,96 @@
+.lede {
+  color: var(--ps-text-muted);
+  font-size: var(--ps-text-sm);
+  margin-bottom: var(--ps-space-3);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ps-space-3);
+  margin-bottom: var(--ps-space-3);
+}
+
+.actions button {
+  min-height: var(--ps-touch-min);
+  padding: 0 var(--ps-space-3);
+}
+
+.insufficient,
+.ready {
+  font-size: var(--ps-text-sm);
+  color: var(--ps-text-muted);
+  margin: 0 0 var(--ps-space-3);
+}
+
+.finding {
+  margin-top: var(--ps-space-4);
+}
+
+.statement {
+  font-size: var(--ps-text-sm);
+  margin: 0 0 var(--ps-space-3);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ps-text-sm);
+  margin-bottom: var(--ps-space-3);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--ps-space-2) var(--ps-space-3);
+  border-bottom: 1px solid var(--ps-border);
+  vertical-align: top;
+}
+
+.table thead th {
+  color: var(--ps-text-muted);
+  font-weight: 600;
+}
+
+.chart {
+  margin-top: var(--ps-space-2);
+}
+
+.chartNote {
+  font-size: var(--ps-text-sm);
+  color: var(--ps-text-subtle);
+  margin: 0 0 var(--ps-space-2);
+}
+
+.bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ps-space-2);
+}
+
+.bars li {
+  display: grid;
+  grid-template-columns: minmax(5rem, 8rem) 1fr;
+  gap: var(--ps-space-2);
+  align-items: center;
+}
+
+.barLabel {
+  font-size: var(--ps-text-sm);
+}
+
+.barTrack {
+  display: block;
+  height: 0.75rem;
+  background: color-mix(in srgb, var(--ps-border) 70%, transparent);
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  background: var(--ps-accent);
+  min-width: 0;
+}

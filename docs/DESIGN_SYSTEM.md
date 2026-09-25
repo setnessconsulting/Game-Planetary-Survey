@@ -157,7 +157,7 @@ field below is required by `npm run check:design`.
 | `instrument-selection` | 4 Select instrument | offered, selected, cannot answer | n/a | no | specified |
 | `observe-measure` | 5 Observe/measure | ready, measured, no authoritative value | the reading itself | **yes** | specified |
 | `evidence-capture` | 6 Capture evidence | nothing to keep, captured, already captured | notebook table | no | implemented |
-| `comparison` | 7 Compare worlds | not comparable, compared, proportional offered | comparison table | **yes** | specified |
+| `comparison` | 7 Compare worlds | not comparable, compared, proportional offered | comparison table | **yes** | implemented |
 | `claim` | 8 Make a claim | drafting, nothing to cite yet, drafted | n/a | no | specified |
 | `cite-evidence` | 9 Cite evidence | none, one world, both worlds | n/a | no | specified |
 | `debrief` | 10 Debrief | supported, contradicted, not yet checkable | n/a | no | specified |

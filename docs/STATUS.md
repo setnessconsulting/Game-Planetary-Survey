@@ -8,7 +8,7 @@ Canonical repository: `setnessconsulting/Game-Planetary-Survey` (`main`)
 
 ## Current phase
 
-**Current phase: instruments and evidence capture (PS-06) complete on canonical main.**
+**Current phase: comparison board and a11y equivalents (PS-07) complete on canonical main.**
 
 The repository contains:
 
@@ -34,12 +34,14 @@ The repository contains:
   scale modes, typed render contract, and authored-mission load in the shell
   (**PS-05** / GAME-369);
 - instrument selection, observe/measure, and evidence capture wired through the
-  shell on the existing domain contracts (**PS-06** / GAME-370).
+  shell on the existing domain contracts (**PS-06** / GAME-370);
+- comparison board with table-first findings, optional chart twin, and expanded
+  a11y coverage through compare (**PS-07** / GAME-371).
 
 Authored missions load into the workstation. Learners can select a mission-offered
-instrument, measure with honest unavailable paths, and capture evidence into the
-notebook. Comparison, claim completion, and production art remain later stories.
-Independent science review remains outstanding.
+instrument, measure with honest unavailable paths, capture evidence, and compare
+worlds on a semantic table. Claim completion and production art remain later
+stories. Independent science review remains outstanding.
 
 **No independent science review has occurred.** Every value is transcribed from an
 agency source and machine-checked for physical plausibility; none has been checked
@@ -59,8 +61,8 @@ is the material prepared for that review, and
 | GAME-368 | PS-04 — canonical bodies/missions | **implemented; science review outstanding** | content authored and sourced; see constraint 1 |
 | GAME-369 | PS-05 — Babylon renderer foundation | **complete** | GAME-369; real-browser renderer evidence; science/visual review not claimed |
 | GAME-370 | PS-06 — instruments/evidence capture | **complete** | GAME-370; instrument → measure → capture in shell; science review not claimed |
-| GAME-371 | PS-07 — notebook/comparison/a11y equivalents | blocked | by PS-06 Done → unblocked for comparison board work |
-| GAME-372 | PS-08 — mission engine/scoring/debrief | blocked | by PS-04 + PS-07 |
+| GAME-371 | PS-07 — notebook/comparison/a11y equivalents | **complete** | GAME-371; comparison board + a11y through compare; science/visual review not claimed |
+| GAME-372 | PS-08 — mission engine/scoring/debrief | blocked | by PS-04 + PS-07 Done → unblocked for claim/debrief work |
 | GAME-373 | PS-09 — guided-mission vertical slice | blocked | hard gate before content expansion |
 | GAME-374 | PS-10 — visual/motion/audio polish | blocked | by PS-09 |
 | GAME-375 | PS-11 — independent missions/depth | blocked | by PS-09 |

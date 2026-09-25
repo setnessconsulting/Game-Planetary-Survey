@@ -90,6 +90,53 @@ describe("App shell", () => {
     expect(screen.queryByTestId("notebook-empty-state")).toBeNull();
     expect(screen.getByTestId("notebook-table").textContent).toContain("Mars");
     expect(screen.getByTestId("notebook-table").textContent).toContain("Radius sounder");
+    expect(screen.getByTestId("comparison-insufficient").textContent).toMatch(/at least 2 worlds/i);
+    expect(screen.getByTestId("compare-button").hasAttribute("disabled")).toBe(true);
+  });
+
+  it("compares two captured worlds on a ranked table", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("load-mission-survey-001-sizes"));
+
+    for (const bodyId of ["mars", "venus"] as const) {
+      fireEvent.click(screen.getByTestId(`select-target-${bodyId}`));
+      fireEvent.click(screen.getByTestId("select-instrument-radiusSounder"));
+      fireEvent.change(screen.getByTestId("measure-attribute"), {
+        target: { value: "meanRadius" },
+      });
+      fireEvent.click(screen.getByTestId("measure-button"));
+      fireEvent.click(screen.getByTestId("capture-evidence"));
+    }
+
+    expect(screen.getByTestId("comparison-ready")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("compare-button"));
+    expect(screen.getByTestId("comparison-table-meanRadius").textContent).toContain("Venus");
+    expect(screen.getByTestId("comparison-table-meanRadius").textContent).toContain("Mars");
+    expect(screen.getByTestId("comparison-statement-meanRadius").textContent).toMatch(
+      /largest to smallest/i,
+    );
+    expect(screen.getByTestId("comparison-chart-meanRadius")).toBeTruthy();
+  });
+
+  it("offers proportional share columns for relief comparisons", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("load-mission-survey-002-surface-relief"));
+
+    for (const bodyId of ["mars", "venus"] as const) {
+      fireEvent.click(screen.getByTestId(`select-target-${bodyId}`));
+      fireEvent.click(screen.getByTestId("select-instrument-altimeter"));
+      fireEvent.change(screen.getByTestId("measure-attribute"), {
+        target: { value: "surfaceRelief" },
+      });
+      fireEvent.click(screen.getByTestId("measure-button"));
+      fireEvent.click(screen.getByTestId("capture-evidence"));
+    }
+
+    fireEvent.click(screen.getByTestId("compare-button"));
+    expect(screen.getByTestId("comparison-finding-surfaceRelief").getAttribute("data-proportional")).toBe(
+      "true",
+    );
+    expect(screen.getByTestId("comparison-share-surfaceRelief-mars").textContent).toMatch(/%/);
   });
 
   it("explains an unsupported measurement instead of inventing a value", () => {
