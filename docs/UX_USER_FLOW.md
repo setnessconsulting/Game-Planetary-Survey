@@ -231,7 +231,7 @@ never the only route to any of the others.
 
 | Concern | Owner |
 |---|---|
-| wireframes, visual system, workstation/HUD design | PS-DESIGN (GAME-367) |
+| wireframes, visual system, workstation/HUD design | PS-DESIGN (GAME-367) — delivered in-repo as [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md); no Figma file is linked (see `STATUS.md` constraint 3) |
 | instrument interaction detail and measurement presentation | PS-06 |
 | notebook/comparison/chart design and data equivalents | PS-07 |
 | mission state machine, scoring, debrief, hints implementation | PS-08 |

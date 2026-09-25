@@ -138,16 +138,27 @@ the provenance manifest, and never the sole carrier of essential information
 
 No unlicensed commercial music. No extracted audio from any product.
 
-## Figma
+## Design authority
 
-A Figma file becomes production design authority only after PS-DESIGN records:
+PS-DESIGN (GAME-367) delivered the design source of truth **in the repository**
+rather than as a Figma file: `docs/DESIGN_SYSTEM.md`, generated from
+`src/design/tokens.ts` and `src/design/surfaces.ts`. No Figma file is linked, and
+`STATUS.md` records that. The trade is stated in `DESIGN_SYSTEM.md` §1: the contract
+is complete and machine-checked, and a canvas's real strengths — fast visual
+exploration and a human artefact to approve — are not provided. Human visual
+sign-off remains outstanding and belongs to PS-09/PS-14.
+
+If a Figma file is later introduced, it becomes production design authority only
+once PS-DESIGN records:
 
 - file key;
 - version/checkpoint;
 - relevant pages/frames;
 - asset ownership and provenance status for exported material.
 
-Exports must be traceable back to the approved design revision.
+Exports must be traceable back to the approved design revision, and the typed token
+source remains the authority for any value that ships: a frame exported from a
+design file does not override `src/design/tokens.ts` without a change to it.
 
 ## Asset manifest (machine-readable)
 
