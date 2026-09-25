@@ -13,8 +13,12 @@
  * is the complete list of measurements a mission needs, and
  * `claimTarget.requiredEvidence` must name observation keys drawn from that list.
  * `validateMissionDefinition` fails the build if the evidence mapping drifts off
- * the completion path, so "you cannot finish this without measuring" is enforced
- * rather than intended.
+ * the completion path, and the domain reads the same field at runtime:
+ * `requiredEvidenceGaps` (src/domain/debrief.ts) reports which required
+ * observations a claim does not cite, and `CompletionSummary.targetMet` is false
+ * while any remain (D-40). So "you cannot finish this without measuring" is
+ * enforced, not intended — the build checks the declaration and the transition
+ * checks the run.
  *
  * A learner *can* guess a correct answer here. They cannot *complete* on it: the
  * claim contract returns `insufficient-evidence` until both worlds' measurements

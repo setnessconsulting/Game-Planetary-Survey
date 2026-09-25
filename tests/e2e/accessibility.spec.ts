@@ -131,7 +131,9 @@ test.describe("automated accessibility", () => {
     await page.goto("/");
     await page.getByTestId("load-mission-survey-001-sizes").click();
 
-    for (const bodyId of ["mars", "venus"] as const) {
+    // All three worlds the mission requires, not only the two the claim compares:
+    // the target is met only when the mission's own evidence is cited (D-40).
+    for (const bodyId of ["moon", "mars", "venus"] as const) {
       await page.getByTestId(`select-target-${bodyId}`).click();
       await page.getByTestId("select-instrument-radiusSounder").click();
       await page.getByTestId("measure-button").click();
@@ -148,12 +150,13 @@ test.describe("automated accessibility", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByTestId("claim-current")).toBeVisible();
 
-    // Cite both observations from the notebook.
+    // Cite every observation from the notebook, by keyboard.
     const boxes = page.getByTestId("cite-evidence").getByRole("checkbox");
-    await expect(boxes).toHaveCount(2);
+    await expect(boxes).toHaveCount(3);
     await boxes.nth(0).check();
     await boxes.nth(1).check();
-    await expect(page.getByTestId("cite-count")).toContainText("Cited 2 of 2");
+    await boxes.nth(2).check();
+    await expect(page.getByTestId("cite-count")).toContainText("Cited 3 of 3");
 
     // Submit and open the debrief, again with the keyboard.
     const submit = page.getByTestId("submit-claim");

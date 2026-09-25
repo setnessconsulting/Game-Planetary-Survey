@@ -147,7 +147,10 @@ describe("the debrief explains the evidence", () => {
 
 describe("the completion summary is bounded and honest", () => {
   it("records counts and the verdict, and whether the target was met", () => {
-    const subject = claim("largerThan", [venus, mars]);
+    // All three of the guided mission's required observations are cited, which is
+    // what "target met" now means (D-40); the Moon is part of the mission's target
+    // even though the claim only compares Mars and Venus.
+    const subject = claim("largerThan", [venus, mars, moon]);
     const evaluation = evaluateClaim(subject, records);
     const summary = buildCompletionSummary({
       mission,
@@ -183,6 +186,60 @@ describe("the completion summary is bounded and honest", () => {
     });
     expect(summary.verdict).toBe("contradicted");
     expect(summary.targetMet).toBe(false);
+  });
+
+  it("does not mark the target met while a required observation is uncited", () => {
+    // The F-1 regression PS-09 found: `survey-001-sizes` names `moon.meanRadius` in
+    // its claim target, and nothing used to read that field, so a supported
+    // Mars-vs-Venus claim reported `targetMet: true` with the Moon never measured.
+    // A supported claim is not a met mission target.
+    const subject = claim("largerThan", [venus, mars]);
+    const evaluation = evaluateClaim(subject, records);
+    const summary = buildCompletionSummary({
+      mission,
+      missionId: mission.id,
+      seed: SEED,
+      evaluation,
+      claim: subject,
+      evidence: records,
+      hintsUsed: 0,
+      claimAttempts: 1,
+    });
+    expect(evaluation.verdict).toBe("supported");
+    expect(summary.verdict).toBe("supported");
+    expect(summary.targetMet).toBe(false);
+    // The observation was taken and kept — the gap is the citation, not the reading.
+    expect(summary.observationsCaptured).toBe(3);
+  });
+
+  it("names the mission's missing required evidence, in the mission's own order", () => {
+    const subject = claim("largerThan", [venus, mars]);
+    const debrief = buildMissionDebrief({
+      mission,
+      claim: subject,
+      evaluation: evaluateClaim(subject, records),
+      records,
+      hintsUsed: 0,
+      claimAttempts: 1,
+    });
+    expect(debrief.missingRequiredEvidence).toEqual([`${MOON_ID}.meanRadius`]);
+    // The claim's own two worlds are cited, so the evaluator reports no citation
+    // problem: the missing evidence is the mission's requirement, not the
+    // evaluator's, which is exactly why a separate reader was needed.
+    expect(debrief.citationProblems).toEqual([]);
+  });
+
+  it("names nothing missing once the mission's own list is cited", () => {
+    const subject = claim("largerThan", [venus, mars, moon]);
+    const debrief = buildMissionDebrief({
+      mission,
+      claim: subject,
+      evaluation: evaluateClaim(subject, records),
+      records,
+      hintsUsed: 0,
+      claimAttempts: 1,
+    });
+    expect(debrief.missingRequiredEvidence).toEqual([]);
   });
 
   it("counts captured observations against the mission's required path only", () => {

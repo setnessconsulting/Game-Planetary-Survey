@@ -8,18 +8,20 @@
  * rejections — replayed through `applyIntent` and digested. If a domain change
  * alters any step, the digest moves.
  *
- * Three traces are recorded for the shipped content, and they are chosen to be a
- * set rather than a happy path:
+ * The traces recorded for the shipped content are chosen to be a set rather than a
+ * happy path, and they live in `tests/content/missionTrace.test.ts`:
  *
- *  - `GUIDED_HONEST_TRACE` — the guided mission played correctly, ending in
- *    `supported`;
- *  - `UNCITED_TRACE` — both worlds measured, but only one cited. Same data, worse
- *    citation, and the verdict must say so;
- *  - `CONTRADICTED_TRACE` — every required observation measured *and* cited, with
- *    the relation stated backwards. The verdict must follow the data rather than
- *    the confidence of the citation.
+ *  - the guided mission played correctly, ending in `supported`;
+ *  - the same two worlds measured with only one cited — same data, worse citation,
+ *    and the verdict must say so;
+ *  - every required observation measured *and* cited, with the relation stated
+ *    backwards. The verdict must follow the data rather than the confidence of the
+ *    citation;
+ *  - the proportional relief mission, with and without the radii a proportional
+ *    claim needs, and the orbital-distance mission — each continuing past the
+ *    verdict into debrief and completion.
  *
- * The middle two are what make the first one mean anything: without them, a
+ * The middle ones are what make the first one mean anything: without them, a
  * `supported` verdict proves only that the machinery can say yes.
  *
  * ## A note on where a trace ends
@@ -27,9 +29,10 @@
  * PS-08 (GAME-372) closed the gap this note used to record. `openDebrief` and
  * `completeMission` now transition into `debrief` and `complete`, and `reviseClaim`
  * reopens the claim in place instead of forcing a re-measure, so a trace can run the
- * frozen loop end to end. `tests/content/missionTrace.test.ts` exercises that end to
- * end and still pins the refusals, because an illegal action that is silently
- * ignored is a defect.
+ * frozen loop end to end, and every shipped mission now has a trace that reaches
+ * `complete`. `tests/content/missionTrace.test.ts` exercises that end to end and
+ * still pins the refusals, because an illegal action that is silently ignored is a
+ * defect.
  */
 
 import type { BodyRecord } from "@/domain/bodies";

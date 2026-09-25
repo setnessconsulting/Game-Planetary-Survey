@@ -17,7 +17,12 @@ import { describe, expect, it } from "vitest";
 
 import { MISSIONS, PLANETARY_BODIES } from "@/content";
 import { MARS_ID, MOON_ID, TITAN_ID, VENUS_ID } from "@/content/bodies";
-import { GUIDED_MISSION_ID, RELIEF_MISSION_ID, VARIANT_MISSION_ID } from "@/content/missions";
+import {
+  DISTANCE_MISSION_ID,
+  GUIDED_MISSION_ID,
+  RELIEF_MISSION_ID,
+  VARIANT_MISSION_ID,
+} from "@/content/missions";
 import { forwardIntentsIn, type MissionSnapshot } from "@/domain/mission";
 import {
   citedEvidenceId,
@@ -39,8 +44,8 @@ const GUIDED_WORLDS = [MOON_ID, MARS_ID, VENUS_ID] as const;
  */
 function surveySteps(
   bodyId: string,
-  instrumentId: "radiusSounder" | "altimeter",
-  attributeId: "meanRadius" | "surfaceRelief",
+  instrumentId: "radiusSounder" | "altimeter" | "orbitalRangefinder",
+  attributeId: "meanRadius" | "surfaceRelief" | "orbitalRadius",
 ): readonly TraceStep[] {
   return [
     { note: `select ${bodyId}`, intent: { kind: "selectTarget", bodyId }, expect: "applied" },
@@ -166,7 +171,79 @@ describe("golden trace: the guided mission played correctly", () => {
     // Recompute deliberately. This covers the step log and the final snapshot, so
     // it moves when the state machine, the claim contract, or a measured value
     // changes — which is the point of a trace over a snapshot.
-    expect(run.digest).toBe("aa1a94c8");
+    //
+    // PS-09 moved it from `aa1a94c8`: `MissionDebrief` gained
+    // `missingRequiredEvidence`, which is empty on this path because all three
+    // required worlds are cited (D-40).
+    expect(run.digest).toBe("8ae54346");
+  });
+});
+
+describe("golden trace: a supported claim can still miss the mission's target", () => {
+  // The F-1 case PS-09 found, pinned at the content level. The guided mission's
+  // claim target names all three worlds, so this run — Mars and Venus measured,
+  // captured, cited, and correctly ordered — reaches `complete` with a supported
+  // claim and a target that is NOT met, because the Moon was never cited (D-40).
+  // Before that decision the same run reported `targetMet: true`.
+  const trace: readonly TraceStep[] = [
+    {
+      note: "load the guided mission",
+      intent: { kind: "loadMission", missionId: GUIDED_MISSION_ID, seed: GUIDED_SEED },
+      expect: "applied",
+    },
+    { note: "read the brief", intent: { kind: "beginBriefing" }, expect: "applied" },
+    ...surveySteps(MARS_ID, "radiusSounder", "meanRadius"),
+    ...surveySteps(VENUS_ID, "radiusSounder", "meanRadius"),
+    { note: "compare the two worlds", intent: { kind: "compare" }, expect: "applied" },
+    {
+      note: "draft the correct relation, citing the two worlds it compares",
+      intent: (snapshot) => ({
+        kind: "draftClaim",
+        draft: {
+          attributeId: "meanRadius",
+          subject: VENUS_ID,
+          relation: "largerThan",
+          object: MARS_ID,
+          citedEvidenceIds: citedEvidenceIds(snapshot, [
+            [VENUS_ID, "meanRadius"],
+            [MARS_ID, "meanRadius"],
+          ]),
+        },
+      }),
+      expect: "applied",
+    },
+    { note: "submit the claim", intent: { kind: "submitClaim" }, expect: "applied" },
+    { note: "open the debrief", intent: { kind: "openDebrief" }, expect: "applied" },
+    { note: "complete the mission", intent: { kind: "completeMission" }, expect: "applied" },
+  ];
+
+  const run = runMissionTrace({
+    steps: trace,
+    bodies: PLANETARY_BODIES,
+    seed: GUIDED_SEED,
+    missions: MISSIONS,
+  });
+
+  it("completes on a supported claim whose mission target is still short", () => {
+    expect(run.rejections).toEqual([]);
+    expect(run.finalPhase).toBe("complete");
+    expect(run.finalSnapshot.evaluation?.verdict).toBe("supported");
+    expect(run.finalSnapshot.completion?.verdict).toBe("supported");
+    // The claim is supported; the mission is not finished with its own evidence.
+    expect(run.finalSnapshot.completion?.targetMet).toBe(false);
+    expect(run.finalSnapshot.completion?.observationsCaptured).toBe(2);
+    expect(run.finalSnapshot.completion?.observationsRequired).toBe(3);
+  });
+
+  it("names the required observation the claim does not cite, and stays revisable", () => {
+    expect(run.finalSnapshot.debrief?.missingRequiredEvidence).toEqual([
+      `${MOON_ID}.meanRadius`,
+    ]);
+    // The evaluator raises no citation problem, which is why a separate reader of
+    // the mission's own requirement was needed: both cited worlds are covered.
+    expect(run.finalSnapshot.debrief?.citationProblems).toEqual([]);
+    // Nothing is a dead end and nothing is punitive: revision is still offered.
+    expect(forwardIntentsIn("complete")).toContain("reviseClaim");
   });
 });
 
@@ -425,6 +502,170 @@ describe("golden trace: the LO-3 proportion claim needs the radii", () => {
     });
     expect(run.finalSnapshot.evaluation?.verdict).toBe("insufficient-evidence");
     expect(run.finalSnapshot.evaluation?.dimensions.reasoningConsistency).toBe(false);
+  });
+
+  // PS-08's follow-through: the proportional mission reaches `complete` the same way
+  // the guided one does, and the debrief reports the ratio the claim was made under
+  // rather than the raw relief. Digests are pinned because a trace is only a golden
+  // fixture if a change to the state machine, the claim contract, or a measured
+  // value shows up as a diff here.
+  const RELIEF_END_TO_END: readonly TraceStep[] = [
+    ...fullSurvey,
+    {
+      note: "draft the proportional claim with both radii",
+      intent: (s) => proportionalDraft(s, true),
+      expect: "applied",
+    },
+    { note: "submit", intent: { kind: "submitClaim" }, expect: "applied" },
+    { note: "open the debrief", intent: { kind: "openDebrief" }, expect: "applied" },
+    { note: "complete the mission", intent: { kind: "completeMission" }, expect: "applied" },
+  ];
+
+  const relief = runMissionTrace({
+    steps: RELIEF_END_TO_END,
+    bodies: PLANETARY_BODIES,
+    seed: RELIEF_SEED,
+    missions: MISSIONS,
+  });
+
+  it("runs the proportional mission through to debrief and completion", () => {
+    expect(relief.steps).toHaveLength(RELIEF_END_TO_END.length);
+    expect(relief.rejections).toEqual([]);
+    expect(relief.finalPhase).toBe("complete");
+
+    const debrief = relief.finalSnapshot.debrief;
+    expect(debrief?.basis).toBe("proportionOfRadius");
+    expect(debrief?.verdict).toBe("supported");
+    expect(debrief?.facts).toHaveLength(3);
+    // The debrief quotes the two worlds the claim compared, and names relief *and*
+    // radius for each as what carries the verdict: four cited observations, none of
+    // them refuting, and no misconception attached to a claim that was right.
+    expect(debrief?.comparedValues.map((value) => value.bodyId)).toEqual([MARS_ID, VENUS_ID]);
+    expect(debrief?.supportingEvidenceIds).toHaveLength(4);
+    expect(debrief?.refutingEvidenceIds).toEqual([]);
+    expect(debrief?.misconception).toBeNull();
+
+    const completion = relief.finalSnapshot.completion;
+    expect(completion?.targetMet).toBe(true);
+    expect(completion?.observationsRequired).toBe(4);
+    expect(completion?.observationsCaptured).toBe(4);
+    expect(completion?.evidenceCount).toBe(4);
+    expect(completion?.citationCount).toBe(4);
+    expect(completion?.claimAttempts).toBe(1);
+    expect(completion?.hintsUsed).toBe(0);
+  });
+
+  it("replays the proportional path identically and pins its digest", () => {
+    const again = runMissionTrace({
+      steps: RELIEF_END_TO_END,
+      bodies: PLANETARY_BODIES,
+      seed: RELIEF_SEED,
+      missions: MISSIONS,
+    });
+    expect(again.serialized).toBe(relief.serialized);
+    expect(again.digest).toBe(relief.digest);
+    expect(relief.digest).toBe("7f3399ff");
+  });
+});
+
+describe("golden trace: the orbital-distance mission runs end to end", () => {
+  const DISTANCE_SEED = 1_026_003;
+
+  const DISTANCE_END_TO_END: readonly TraceStep[] = [
+    {
+      note: "load the independent orbital-distance mission",
+      intent: { kind: "loadMission", missionId: DISTANCE_MISSION_ID, seed: DISTANCE_SEED },
+      expect: "applied",
+    },
+    { note: "read the brief", intent: { kind: "beginBriefing" }, expect: "applied" },
+    ...surveySteps(VENUS_ID, "orbitalRangefinder", "orbitalRadius"),
+    ...surveySteps(MARS_ID, "orbitalRangefinder", "orbitalRadius"),
+    { note: "compare the two orbits", intent: { kind: "compare" }, expect: "applied" },
+    // A hint is content, not a shortcut (D-38): asking for one changes the record,
+    // not the science, so the verdict is unchanged and the count is carried into
+    // both the debrief and the completion summary.
+    { note: "ask for the first hint", intent: { kind: "requestHint" }, expect: "applied" },
+    {
+      note: "claim that Mars orbits farther out than Venus, citing both readings",
+      intent: (snapshot) => ({
+        kind: "draftClaim",
+        draft: {
+          attributeId: "orbitalRadius",
+          subject: MARS_ID,
+          relation: "largerThan",
+          object: VENUS_ID,
+          citedEvidenceIds: citedEvidenceIds(snapshot, [
+            [MARS_ID, "orbitalRadius"],
+            [VENUS_ID, "orbitalRadius"],
+          ]),
+        },
+      }),
+      expect: "applied",
+    },
+    { note: "submit", intent: { kind: "submitClaim" }, expect: "applied" },
+    { note: "open the debrief", intent: { kind: "openDebrief" }, expect: "applied" },
+    { note: "complete the mission", intent: { kind: "completeMission" }, expect: "applied" },
+  ];
+
+  const run = runMissionTrace({
+    steps: DISTANCE_END_TO_END,
+    bodies: PLANETARY_BODIES,
+    seed: DISTANCE_SEED,
+    missions: MISSIONS,
+  });
+
+  it("records a step for every intent and refuses nothing on a legal path", () => {
+    expect(run.steps).toHaveLength(DISTANCE_END_TO_END.length);
+    expect(run.steps.map((step) => step.kind)).toEqual(DISTANCE_END_TO_END.map((step) => step.expect));
+    expect(run.rejections).toEqual([]);
+  });
+
+  it("supports the distance claim and finishes the mission on it", () => {
+    expect(run.finalPhase).toBe("complete");
+    expect(run.finalSnapshot.evaluation?.verdict).toBe("supported");
+    expect(run.finalSnapshot.debrief?.attributeId).toBe("orbitalRadius");
+    expect(run.finalSnapshot.debrief?.comparedValues.map((value) => value.bodyId)).toEqual([
+      MARS_ID,
+      VENUS_ID,
+    ]);
+    expect(run.finalSnapshot.completion?.targetMet).toBe(true);
+    expect(run.finalSnapshot.completion?.claimAttempts).toBe(1);
+  });
+
+  it("counts the mission's own required observations", () => {
+    // The distance mission needs two readings, not the guided mission's three, and
+    // the completion summary has to take that from the mission rather than a
+    // constant in the domain.
+    const distance = MISSIONS.find((mission) => mission.id === DISTANCE_MISSION_ID);
+    expect(distance?.requiredObservations).toHaveLength(2);
+    expect(run.finalSnapshot.completion?.observationsRequired).toBe(
+      distance?.requiredObservations.length,
+    );
+    expect(run.finalSnapshot.completion?.observationsCaptured).toBe(2);
+    expect(run.finalSnapshot.evidence.map((record) => record.bodyId)).toEqual([VENUS_ID, MARS_ID]);
+    expect(run.finalSnapshot.comparison.map((finding) => finding.attributeId)).toEqual([
+      "orbitalRadius",
+    ]);
+  });
+
+  it("carries the hint into the debrief without changing the verdict", () => {
+    expect(run.finalSnapshot.hintsUsed).toBe(1);
+    expect(run.finalSnapshot.debrief?.hintsUsed).toBe(1);
+    expect(run.finalSnapshot.completion?.hintsUsed).toBe(1);
+    expect(run.finalSnapshot.debrief?.verdict).toBe("supported");
+    expect(run.finalSnapshot.debrief?.misconception).toBeNull();
+  });
+
+  it("replays identically and pins a golden digest", () => {
+    const again = runMissionTrace({
+      steps: DISTANCE_END_TO_END,
+      bodies: PLANETARY_BODIES,
+      seed: DISTANCE_SEED,
+      missions: MISSIONS,
+    });
+    expect(again.serialized).toBe(run.serialized);
+    expect(again.digest).toBe(run.digest);
+    expect(run.digest).toBe("b81246d8");
   });
 });
 

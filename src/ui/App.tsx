@@ -160,7 +160,15 @@ export function App() {
     snapshot.phase === "instrumentSelection" ||
     snapshot.phase === "observing" ||
     snapshot.phase === "evidenceCapture" ||
-    snapshot.phase === "comparison";
+    snapshot.phase === "comparison" ||
+    // The domain allows `selectTarget` in `claimDrafting` and `debrief` — that is
+    // the "return to measurement" recovery of docs/UX_USER_FLOW.md step 11, and it
+    // is how a learner collects a required observation their claim does not cite.
+    // The controls used to disagree with the state machine here, which made that
+    // recovery unreachable: the domain permitted it and the UI offered no way to
+    // do it (found by the PS-09 vertical-slice qualification).
+    snapshot.phase === "claimDrafting" ||
+    snapshot.phase === "debrief";
 
   const instrumentSelectionEnabled =
     snapshot.missionId !== null &&
