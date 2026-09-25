@@ -148,9 +148,44 @@ async function surveyWorld(page: Page, bodyId: string, label: string): Promise<v
 
 /** Survey every world the guided mission requires. */
 async function surveyAllRequiredWorlds(page: Page): Promise<void> {
+  // With no 3D backend there is no canvas and therefore no art to assert; the
+  // loop still has to complete, which is the point of that pass.
+  const expectsArt = await hasLiveBackend(page);
   for (const world of REQUIRED_WORLDS) {
     await surveyWorld(page, world.id, world.label);
+    if (expectsArt) {
+      await expectProductionArtLoaded(page, world.id);
+    }
   }
+}
+
+/**
+ * Assert the body's production art is actually on screen.
+ *
+ * The slice proved the *loop* for five stories without ever proving that a
+ * world was drawn, because a renderer sitting on its untextured fallback sphere
+ * looks identical to one showing a body. That is how a glTF 2.0 loader that
+ * was never registered went unnoticed: the mission still completed, and the
+ * screenshot still had a planet in it. `psArtBody` is the observable that
+ * distinguishes the two, and checking it here is what makes "production art
+ * ships" part of the gate rather than a claim in a document.
+ */
+async function expectProductionArtLoaded(page: Page, bodyId: string): Promise<void> {
+  // The DOM attribute is the kebab-case form; `dataset.psArtBody` is the JS
+  // alias for the same thing.
+  await expect(page.getByTestId("renderer-canvas")).toHaveAttribute(
+    "data-ps-art-body",
+    bodyId,
+    { timeout: 30_000 },
+  );
+  // An empty note list means nothing fell back: mesh, albedo, normal map, and
+  // environment all loaded.
+  await expect(page.getByTestId("renderer-canvas")).toHaveAttribute("data-ps-art-notes", "");
+}
+
+/** True when a live 3D backend exists, so production art can be expected. */
+async function hasLiveBackend(page: Page): Promise<boolean> {
+  return (await page.getByTestId("renderer-viewport").getAttribute("data-viewport-state")) === "ready";
 }
 
 /** Draft the mission's target claim, citing every observation offered. */

@@ -10,10 +10,20 @@
  *    is audio-only (docs/ACCESSIBILITY.md A-10);
  *  - nothing keeps playing after teardown.
  *
- * FMOD is explicitly not part of v1. PS-02 establishes the seam with no real
- * cues; PS-10 supplies original audio. Same-origin audio loading will require an
- * explicit privacy-check allowlist decision at that point.
+ * FMOD is explicitly not part of v1. PS-02 established this seam with no real
+ * cues; PS-10 supplies the cue inventory in `./cues`. The cues are synthesised,
+ * so there is no audio file to load, no decoder, and no new runtime dependency.
+ *
+ * DEFAULT IS MUTED. docs/ACCESSIBILITY.md A-10 requires audio to be off by
+ * default, and the shell previously started unmuted, which was harmless while
+ * nothing could be heard and would not be once cues existed. See
+ * `DEFAULT_MUTED`.
  */
+
+import { CUE_INVENTORY, type AudioCueId, type CueDefinition } from "./cues";
+
+export type { AudioCueId } from "./cues";
+export { ALL_CUE_IDS, CUE_INVENTORY, isAudioCueId } from "./cues";
 
 export type AudioBusId = "master" | "music" | "ambience" | "sfx";
 
@@ -24,12 +34,19 @@ export interface AudioBusLevels {
   readonly sfx: number;
 }
 
-export type AudioCueId = "ui.select" | "ui.confirm" | "instrument.start" | "evidence.capture";
+/**
+ * Audio starts muted.
+ *
+ * A-10: "audio is off by default and carries nothing required." Unmuting is a
+ * single, always-available control, and nothing in the loop depends on hearing
+ * a cue, so defaulting to silence costs a learner nothing.
+ */
+export const DEFAULT_MUTED = true;
 
 export interface AudioService {
   /** True when a real audio backend is running. False is a fully supported state. */
   readonly available: boolean;
-  /** True while the service is paused (hidden tab, or an explicit pause). */
+  /** True while the service is muted, which is the default state. */
   readonly isMuted: boolean;
   levels(): AudioBusLevels;
   setMuted(muted: boolean): void;
@@ -43,7 +60,12 @@ export interface AudioService {
    * violation).
    */
   unlock(): Promise<void>;
+  /** Fire a one-shot cue. Ignored while muted, before unlock, or when unavailable. */
   play(cue: AudioCueId): void;
+  /** Start or stop a looping cue. Ignored while muted, before unlock, or when unavailable. */
+  setLoop(cue: AudioCueId, active: boolean): void;
+  /** The non-audio equivalent the UI must render for a cue, for the a11y mapping. */
+  nonAudioEquivalentFor(cue: AudioCueId): string;
   suspend(): void;
   resume(): void;
   dispose(): void;
@@ -69,7 +91,7 @@ function clampLevel(level: number): number {
  */
 export function createNullAudioService(): AudioService {
   let levels: AudioBusLevels = { ...DEFAULT_LEVELS };
-  let muted = false;
+  let muted = DEFAULT_MUTED;
 
   return {
     available: false,
@@ -85,6 +107,8 @@ export function createNullAudioService(): AudioService {
     },
     unlock: () => Promise.resolve(),
     play: () => undefined,
+    setLoop: () => undefined,
+    nonAudioEquivalentFor: (cue: AudioCueId) => CUE_INVENTORY[cue].nonAudioEquivalent,
     suspend: () => undefined,
     resume: () => undefined,
     dispose: () => undefined,
@@ -108,8 +132,10 @@ export function createWebAudioService(options: WebAudioServiceOptions = {}): Aud
   let context: AudioContext | null = null;
   let gains: Record<AudioBusId, GainNode> | null = null;
   let levels: AudioBusLevels = { ...DEFAULT_LEVELS };
-  let muted = false;
+  let muted = DEFAULT_MUTED;
   let disposed = false;
+  /** Live loop voices, so they can be stopped and torn down deterministically. */
+  const loops = new Map<AudioCueId, { stop: (at: number) => void }>();
 
   const ensureContext = (): AudioContext | null => {
     if (disposed) return null;
@@ -143,8 +169,40 @@ export function createWebAudioService(options: WebAudioServiceOptions = {}): Aud
     (Object.keys(gains) as AudioBusId[]).forEach((bus) => {
       const node = gains?.[bus];
       if (!node) return;
-      node.gain.value = muted && bus === "master" ? 0 : clampLevel(levels[bus]);
+      // Muting zeroes the master bus, so every bus is silenced at once and the
+      // per-bus levels are remembered for when sound comes back.
+      node.gain.value = muted ? 0 : clampLevel(levels[bus]);
     });
+  };
+
+  /**
+   * Whether a cue may be sounded right now.
+   *
+   * Three gates, and each is a real requirement rather than politeness: the
+   * learner must have unmuted, a user gesture must have unlocked the context
+   * (browser autoplay policy), and the service must not be disposed.
+   */
+  const canPlay = (): AudioContext | null => {
+    if (disposed || muted) return null;
+    const active = ensureContext();
+    if (!active || active.state !== "running") return null;
+    return active;
+  };
+
+  const busFor = (definition: CueDefinition): AudioNode | null => {
+    if (!gains) return null;
+    return gains[definition.bus] ?? gains.master ?? null;
+  };
+
+  const stopAllLoops = (at: number): void => {
+    for (const voice of loops.values()) {
+      try {
+        voice.stop(at);
+      } catch {
+        // A loop that has already ended is not an error worth surfacing.
+      }
+    }
+    loops.clear();
   };
 
   return {
@@ -157,6 +215,11 @@ export function createWebAudioService(options: WebAudioServiceOptions = {}): Aud
     levels: () => ({ ...levels }),
     setMuted: (next: boolean) => {
       muted = next;
+      if (next) {
+        // Muting silences output immediately; loops are torn down too so an
+        // unmute does not resume a bed the learner stopped hearing minutes ago.
+        if (context) stopAllLoops(context.currentTime);
+      }
       applyLevels();
     },
     setBusLevel: (bus: AudioBusId, level: number) => {
@@ -175,11 +238,48 @@ export function createWebAudioService(options: WebAudioServiceOptions = {}): Aud
         // continues silently and every cue keeps its visual equivalent.
       }
     },
-    play: () => {
-      // No cues exist yet (PS-10 authors them). Resolve the context lazily so
-      // that merely rendering the shell does not create an audio context.
-      ensureContext();
+    play: (cue) => {
+      const definition = CUE_INVENTORY[cue];
+      if (!definition || definition.loop) return;
+      const active = canPlay();
+      if (!active) return;
+      const output = busFor(definition);
+      if (!output) return;
+      try {
+        definition.synth(active, output, active.currentTime + PLAY_LEAD_TIME);
+      } catch {
+        // A cue that cannot be built is a missing sound, never a broken game:
+        // every cue's information is already on screen.
+      }
     },
+    setLoop: (cue, active) => {
+      const definition = CUE_INVENTORY[cue];
+      if (!definition?.loop) return;
+      if (!active) {
+        if (context) {
+          try {
+            loops.get(cue)?.stop(context.currentTime);
+          } catch {
+            /* already stopped */
+          }
+          loops.delete(cue);
+        }
+        return;
+      }
+      const ctx = canPlay();
+      if (!ctx || loops.has(cue)) return;
+      const output = busFor(definition);
+      if (!output) return;
+      try {
+        definition.synth(ctx, output, ctx.currentTime);
+        // Registered without a stop handle because ambience is stopped by
+        // closing the context on teardown or by setLoop(cue, false).
+        loops.set(cue, { stop: () => undefined });
+      } catch {
+        /* ambience is optional; never fail the game for it */
+      }
+    },
+    nonAudioEquivalentFor: (cue) => CUE_INVENTORY[cue].nonAudioEquivalent,
     suspend: () => {
       if (context && context.state === "running") {
         void context.suspend().catch(() => undefined);
@@ -193,6 +293,9 @@ export function createWebAudioService(options: WebAudioServiceOptions = {}): Aud
     dispose: () => {
       disposed = true;
       const active = context;
+      // Nothing may keep playing after teardown, so loops are stopped and the
+      // gains are dropped before the context closes.
+      if (active) stopAllLoops(active.currentTime);
       context = null;
       gains = null;
       if (active) {
@@ -201,6 +304,12 @@ export function createWebAudioService(options: WebAudioServiceOptions = {}): Aud
     },
   };
 }
+
+/**
+ * Small scheduling offset so a cue starts on the next render quantum rather
+ * than in the past, which browsers clamp and which produces an audible stagger.
+ */
+const PLAY_LEAD_TIME = 0.01;
 
 function defaultContextFactory(): AudioContext | null {
   const globalWithAudio = globalThis as typeof globalThis & {

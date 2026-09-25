@@ -5,9 +5,14 @@
  * it draws what `RenderSnapshot` tells it to draw. There are no scientific values
  * in this file, and there must never be (docs/TECHNICAL_DESIGN.md §4.4).
  *
- * PS-05 replaces the PS-02 reference sphere with the authored planetary pipeline:
- * PBR materials, IBL lighting, optional atmosphere shell, GLB/KTX2 body loading,
+ * PS-05 replaced the PS-02 reference sphere with the authored planetary pipeline:
+ * PBR materials, IBL lighting, optional atmosphere shell, GLB body loading,
  * and curated camera modes.
+ *
+ * PS-10 supplies the production art and the calibration record. Tone mapping and
+ * exposure now come from `calibration.ts` with a written rationale instead of
+ * inline literals, the ambient-colour IBL stand-in is replaced by a prefiltered
+ * HDR environment, and each body loads its own mesh and textures.
  */
 
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
@@ -22,13 +27,13 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import type { Scene } from "@babylonjs/core/scene";
-import { ImageProcessingConfiguration } from "@babylonjs/core/Materials/imageProcessingConfiguration";
 
 import type { QualityProfile } from "@/assets/qualityProfiles";
 import type { CameraMode, RenderSnapshot } from "@/domain/renderSnapshot";
 
-import { loadPlaceholderBody, type LoadedBody } from "./assets";
+import { loadEnvironment, loadSurveyBody, type LoadedBody } from "./assets";
 import { applyCameraMode, resetCameraToMode } from "./cameraModes";
+import { ATMOSPHERE_PRESENTATION, EXPOSURE, TONE_MAPPING, materialForBody } from "./calibration";
 
 export interface SceneHandles {
   readonly camera: ArcRotateCamera;
@@ -41,7 +46,9 @@ export interface SceneHandles {
   resetCamera(reducedMotion: boolean): void;
   setQuality(profile: QualityProfile, reducedMotion: boolean): void;
   /** Kick off progressive body loading; safe to call repeatedly. */
-  ensureBodyLoaded(qualityId: QualityProfile["id"]): Promise<readonly string[]>;
+  ensureBodyLoaded(qualityId: QualityProfile["id"], bodyId: string | null): Promise<readonly string[]>;
+  /** The body whose production art is currently on screen, or null. */
+  loadedBodyId(): string | null;
   disposeLoadedBody(): void;
 }
 
@@ -55,11 +62,12 @@ export interface SceneHandles {
  */
 export function buildScene(scene: Scene, profile: QualityProfile): SceneHandles {
   scene.clearColor = new Color4(0.031, 0.04, 0.055, 1);
-  scene.imageProcessingConfiguration.toneMappingEnabled = true;
-  scene.imageProcessingConfiguration.toneMappingType =
-    ImageProcessingConfiguration.TONEMAPPING_ACES;
-  scene.imageProcessingConfiguration.exposure = 1.05;
-  scene.environmentIntensity = 0.85;
+  // Calibrated values with a recorded rationale (docs/RENDERING_QUALITY_STRATEGY.md §3).
+  scene.imageProcessingConfiguration.toneMappingEnabled = TONE_MAPPING.enabled;
+  scene.imageProcessingConfiguration.toneMappingType = TONE_MAPPING.type;
+  scene.imageProcessingConfiguration.exposure = EXPOSURE.exposure;
+  scene.imageProcessingConfiguration.contrast = EXPOSURE.contrast;
+  scene.environmentIntensity = EXPOSURE.environmentIntensity;
 
   const camera = new ArcRotateCamera(
     "survey-camera",
@@ -85,19 +93,28 @@ export function buildScene(scene: Scene, profile: QualityProfile): SceneHandles 
   fillLight.intensity = 0.35;
   fillLight.diffuse = new Color3(0.55, 0.62, 0.8);
 
-  // Calm procedural IBL stand-in: a low-cost environment colour so PBR has a
-  // reflection context without shipping a large HDR for the foundation gate.
+  // The real prefiltered HDR environment is loaded during progressive start-up
+  // (see `ensureBodyLoaded`). Until it arrives, this flat ambient term keeps PBR
+  // from rendering black; it is a loading state, not the final lighting model.
   scene.ambientColor = new Color3(0.08, 0.09, 0.12);
 
   const fallbackBody = CreateSphere("fallback-body", { diameter: 2, segments: 48 }, scene);
   const fallbackMaterial = new PBRMaterial("fallback-pbr", scene);
-  fallbackMaterial.albedoColor = new Color3(0.36, 0.44, 0.58);
-  fallbackMaterial.metallic = 0.05;
-  fallbackMaterial.roughness = 0.72;
+  const fallbackCalibration = materialForBody("");
+  fallbackMaterial.albedoColor = new Color3(...fallbackCalibration.albedoTint);
+  fallbackMaterial.metallic = fallbackCalibration.metallic;
+  fallbackMaterial.roughness = fallbackCalibration.roughness;
   fallbackBody.material = fallbackMaterial;
   fallbackBody.isPickable = false;
 
-  const atmosphereShell = CreateSphere("atmosphere-shell", { diameter: 2.18, segments: 32 }, scene);
+  // Scale is the neutral, explicitly-labelled representation documented in
+  // `calibration.ts`: the only sourced atmosphere value in v1 is a lower bound
+  // on detection altitude, so a shell sized from it would imply a measurement.
+  const atmosphereShell = CreateSphere(
+    "atmosphere-shell",
+    { diameter: 2 * ATMOSPHERE_PRESENTATION.shellScale, segments: 32 },
+    scene,
+  );
   const atmosphereMaterial = new PBRMaterial("atmosphere-pbr", scene);
   atmosphereMaterial.albedoColor = new Color3(0.45, 0.65, 0.95);
   atmosphereMaterial.alpha = 0.18;
@@ -125,6 +142,7 @@ export function buildScene(scene: Scene, profile: QualityProfile): SceneHandles 
   let shadowGenerator: ShadowGenerator | null = null;
   let pipeline: DefaultRenderingPipeline | null = null;
   let loadedBody: LoadedBody | null = null;
+  let loadedBodyId: string | null = null;
   let loadInFlight: Promise<readonly string[]> | null = null;
   let currentMode: CameraMode = "orbit";
   let lastPresentationMode: RenderSnapshot["presentation"]["mode"] | null = null;
@@ -201,13 +219,32 @@ export function buildScene(scene: Scene, profile: QualityProfile): SceneHandles 
         reducedMotion,
       });
     },
-    async ensureBodyLoaded(qualityId): Promise<readonly string[]> {
-      if (loadedBody) return [];
+    async ensureBodyLoaded(qualityId, bodyId): Promise<readonly string[]> {
       if (loadInFlight) return loadInFlight;
+      if (loadedBody && loadedBodyId === bodyId) return [];
+      if (!bodyId) return [];
+
       loadInFlight = (async () => {
-        const result = await loadPlaceholderBody(scene, qualityId);
+        const notes: string[] = [];
+
+        // Switching bodies must release the previous body, or the scene
+        // accumulates one GLB per world the learner has ever surveyed.
+        if (loadedBody && loadedBodyId !== bodyId) {
+          loadedBody.dispose();
+          loadedBody = null;
+          loadedBodyId = null;
+        }
+
+        // The environment is shared by every body, so it loads in parallel with
+        // the body rather than gating it.
+        const [, result] = await Promise.all([
+          loadEnvironment(scene, notes),
+          loadSurveyBody(scene, qualityId, bodyId),
+        ]);
+
         if (result.body) {
           loadedBody = result.body;
+          loadedBodyId = bodyId;
           fallbackBody.setEnabled(false);
           if (shadowGenerator) {
             for (const mesh of result.body.meshes) {
@@ -215,15 +252,25 @@ export function buildScene(scene: Scene, profile: QualityProfile): SceneHandles 
               mesh.receiveShadows = true;
             }
           }
+        } else {
+          // No art for this body: fall back honestly and say why, rather than
+          // leaving the previous world's mesh on screen.
+          loadedBodyId = null;
         }
+        notes.push(...result.notes);
+
         loadInFlight = null;
-        return result.notes;
+        return notes;
       })();
       return loadInFlight;
+    },
+    loadedBodyId(): string | null {
+      return loadedBodyId;
     },
     disposeLoadedBody(): void {
       loadedBody?.dispose();
       loadedBody = null;
+      loadedBodyId = null;
       loadInFlight = null;
     },
   };

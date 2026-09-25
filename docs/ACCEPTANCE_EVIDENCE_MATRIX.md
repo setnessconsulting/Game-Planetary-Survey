@@ -23,7 +23,7 @@ this table exists so that "done" always has an artifact attached to it.
 | GAME-371 | PS-07 | evidence notebook, comparison, accessible equivalents | notebook/comparison board; charts plus real data-table equivalents; keyboard/touch operation; axe checks |
 | GAME-372 | PS-08 | mission state machine, claim evaluation, scoring, debrief | state-machine tests; anti-guessing test (uncited claim rejected); separate scoring dimensions; debrief traceability; hints that do not answer; recovery paths |
 | GAME-373 | PS-09 | guided-mission production vertical slice | complete guided mission; full loop playable end to end; science/UX/accessibility/real-render/performance evidence; **hard gate before content expansion** |
-| GAME-374 | PS-10 | final visual/motion/audio polish + asset pipeline | final assets with provenance; PBR/HDR calibrated; motion/reduced-motion; audio service complete with mute; no placeholders; provenance manifest populated |
+| GAME-374 | PS-10 | final visual/motion/audio polish + asset pipeline | final assets with provenance; PBR/HDR calibrated; motion/reduced-motion; audio service complete with mute; no placeholders; provenance manifest populated — see the GAME-374 section below for the per-line record and the outstanding human evidence |
 | GAME-375 | PS-11 | independent missions, depth, variants, balance, final science review | independent missions; additional bodies; seeded variants; balance evidence; **final science-content review**; target-age evidence |
 | GAME-376 | PS-12 | consolidated qualification | exact-candidate unit/contract/E2E/accessibility/browser/real-render/performance/memory/privacy/provenance/build package; bundle and asset reports |
 | GAME-377 | PS-13 | immutable non-production candidate published | exact SHA → immutable prefix; preview pointer configured; launcher/play/nested-asset/iframe checks; production still unavailable; recorded identities |
@@ -112,6 +112,34 @@ The slice is `survey-001-sizes`. Full record and the outstanding list:
 **Not claimed by PS-09:** GPU/device-qualified performance, human visual sign-off, target-age
 playtest, screen-reader experience, science review, and production art (PS-10's pipeline;
 the slice runs on PS-05's generated placeholders).
+
+---
+
+### GAME-374 / PS-10 — final visual/motion/audio polish and the asset pipeline
+
+Full record: [`ART_DIRECTION.md`](ART_DIRECTION.md). Decisions D-41…D-44.
+
+| Required evidence | State |
+|---|---|
+| final assets with provenance | delivered — 21 shipping files across five bodies (mesh + LOD1 + albedo + normal each) plus one HDR environment, every one with a complete, approved `generated.ps10` record; `src/assets/provenanceManifest.json` is emitted by the same loop that wrote the bytes |
+| PBR/HDR calibrated | delivered as data, not defaults — ACES tone mapping, exposure 1.05, contrast 1.12, environment intensity 0.85, each with a written rationale in `src/renderer/calibration.ts`; a prefiltered `HDRCubeTexture` replaces PS-05's flat ambient stand-in; the environment is dark and directional so bodies separate by material response under a common light rather than by a per-body ambient fudge |
+| bodies stay measurably distinct | delivered as a number — every pair of bodies is separated by ≥10 CIE76 ΔE in Lab space, asserted in `tests/renderer/calibration.test.ts`, because §3 forbids an IBL that makes two measurably different bodies look the same |
+| motion/reduced-motion | delivered — `src/design/motion.ts` is the single reader of the four-step hierarchy; the camera transition now comes from `--ps-motion-camera` instead of the renderer's own 900 ms literal; all four durations collapse to 1 ms under reduced motion; no duration literal may reappear in any stylesheet or module |
+| audio service complete with mute | delivered — nine cues with deterministic synthesis graphs, four buses, per-bus levels, gesture-gated unlock, visibility suspend/resume, loop lifecycle, and teardown disposal; **muted by default** (A-10, D-43) |
+| no placeholders | delivered — zero `generated.ps05-placeholder-*` entries remain; `npm run check:assets` now fails the build on any placeholder id, path, or provenance id |
+| provenance manifest populated | delivered — 30 records (21 file-backed, 9 runtime-synthesised audio cues), each carrying the full field set `ASSET_PROVENANCE.md` requires, all approved, all `agency_origin: none`; the gate resolves every `provenanceId` and verifies byte counts and content hashes against disk |
+| art direction is not measurement | delivered — every record carries `scientific_claim_linkage: "none"`, the renderer reads no planetary attribute name, and displacement amplitudes stay a small fraction of radius so no silhouette reads as a scale claim |
+| **GPU/device-qualified visual quality** | **outstanding** — every rendering observation in this story was made under software rasterisation; PS-12 |
+| **human visual sign-off of the art** | **outstanding** — the art is original and machine-generated, not artist-commissioned, and nobody has looked at it and approved it; PS-14 |
+| **audio heard by a human** | **outstanding** — the cues are verified structurally and against a stub audio graph; whether they sound good is PS-14's |
+| independent science review | **outstanding** — GAME-368, unchanged; the art is unrelated to the science question and the values learners are graded on are untouched |
+
+**Not claimed by PS-10:** GPU- or device-qualified performance or visual quality,
+human visual sign-off, target-age legibility, screen-reader human experience,
+independent science review (GAME-368), and content expansion (PS-11). The art is
+original and provenance-clean; it is **not** artist-commissioned, and the KTX2
+texture preference is deliberately not met (D-42) because the approved dependency
+set contains no KTX2 decoder.
 
 ---
 

@@ -144,11 +144,21 @@ pass: the entire slice completes with no 3D backend at all.
 |---|---|---|
 | GPU/device-qualified frame time, pacing, and memory | PS-12 (consolidated qualification) | **outstanding** — §4 records software-rendered numbers only |
 | Real or representative device check (desktop + Chromebook-class) | PS-12 / PS-14 | **outstanding** |
-| Human visual review of the design direction | PS-09 / PS-14 | **outstanding** — no Figma file exists (`STATUS.md` constraint 3) |
+| Human visual review of the design direction | PS-14 | **outstanding** — no Figma file exists (`STATUS.md` constraint 3), and PS-10's production art is original and machine-generated, so nobody has looked at it and approved it (`ART_DIRECTION.md`) |
 | Target-age usability and comprehension playtest | PS-11 / PS-14 | **outstanding** |
 | Screen-reader human experience; final accessibility conformance | PS-14 | **outstanding** — axe is coverage, never sign-off (`ACCESSIBILITY.md` §6) |
 | Independent science review of the v1 content | GAME-368 / PS-11 | **outstanding** — `catalogueIsScienceReviewed()` returns `false` |
-| Production art, PBR/HDR calibration, audio service, no placeholders | PS-10 | **outstanding** — the slice runs on PS-05's generated placeholders by design |
+| Production art, PBR/HDR calibration, audio service, no placeholders | PS-10 | **delivered** — see `ART_DIRECTION.md`; the slice now runs on per-body production art, a prefiltered HDR environment, calibrated PBR, a complete audio service, and a populated provenance manifest. **Human visual sign-off remains outstanding (PS-14)** and GPU-qualified visual quality remains outstanding (PS-12) |
+
+**A note on the slice's re-qualification.** The `@slice` suite was re-run in full
+against the PS-10 production art in a real browser and passes: the guided mission
+still plays brief to complete, still runs keyboard-only, and still completes with no
+3D backend at all. PS-10 also re-ran the per-engine suites — chromium 24, firefox
+17+1 skip, webkit 17+1 skip, host 3. The slice's *evidence artefact* numbers in §4
+predate PS-10 and are not restated here, because a frame-time or memory figure
+measured under software rasterisation is not judgeable in either direction and
+republishing it would lend it a currency it has not earned. PS-12 measures them on
+real hardware.
 
 ## 7. Reproducing this evidence
 

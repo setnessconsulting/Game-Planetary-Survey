@@ -13,6 +13,7 @@ import { Animation } from "@babylonjs/core/Animations/animation";
 import type { Scene } from "@babylonjs/core/scene";
 
 import type { CameraMode } from "@/domain/renderSnapshot";
+import { MOTION_TOKENS, cameraTransitionMs } from "@/design/motion";
 
 export interface CameraPose {
   readonly alpha: number;
@@ -27,8 +28,18 @@ const POSES: Readonly<Record<CameraMode, CameraPose>> = {
   inspection: { alpha: -Math.PI / 1.7, beta: Math.PI / 2.8, radius: 2.1 },
 };
 
-/** Camera motion budget: ≤1200 ms (docs/PERFORMANCE_AND_DEVICE_BUDGETS.md). */
-export const CAMERA_TRANSITION_MS = 900;
+/**
+ * Camera motion duration, in milliseconds.
+ *
+ * This used to be a literal `900` here, which meant the product shipped two
+ * camera-step durations: 900 ms in the viewport and 640 ms from
+ * `--ps-motion-camera` in the stylesheet. It is now read from the design token
+ * so the two cannot drift, and so editing the token actually moves the camera.
+ *
+ * The authored 640 ms also sits inside the <=1200 ms camera budget in
+ * docs/PERFORMANCE_AND_DEVICE_BUDGETS.md, so following the token costs nothing.
+ */
+export const CAMERA_TRANSITION_MS = MOTION_TOKENS["--ps-motion-camera"].durationMs;
 
 export function poseFor(mode: CameraMode): CameraPose {
   return POSES[mode];
@@ -63,7 +74,7 @@ export function applyCameraMode(options: ApplyCameraOptions): void {
     return;
   }
 
-  const frames = Math.max(1, Math.round((CAMERA_TRANSITION_MS / 1000) * 60));
+  const frames = Math.max(1, Math.round((cameraTransitionMs(false) / 1000) * 60));
   animateNumber(camera, scene, "alpha", camera.alpha, pose.alpha, frames);
   animateNumber(camera, scene, "beta", camera.beta, pose.beta, frames);
   animateNumber(camera, scene, "radius", camera.radius, pose.radius, frames);

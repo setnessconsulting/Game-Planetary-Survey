@@ -19,7 +19,7 @@ import {
   resolveQualityProfile,
   type QualityProfileId,
 } from "@/assets/qualityProfiles";
-import { createAudioService, type AudioService } from "@/audio";
+import { DEFAULT_MUTED, createAudioService, type AudioService, type AudioCueId } from "@/audio";
 import {
   MISSIONS,
   PLANETARY_BODIES,
@@ -84,6 +84,22 @@ const LOADABLE_MISSIONS = [
   VARIANT_MISSION_ID,
 ] as const;
 
+/**
+ * Which cue marks entering each phase.
+ *
+ * Only phases that mean something get a cue. A cue per phase would turn the
+ * product into a metronome, and DESIGN_SYSTEM.md §8.1 is explicit that motion
+ * must move something the learner is about to read — the same restraint
+ * applies to sound.
+ */
+const PHASE_CUES: Readonly<Partial<Record<string, AudioCueId>>> = {
+  observing: "instrument.start",
+  evidenceCapture: "instrument.stop",
+  claimSubmitted: "claim.submitted",
+  debrief: "claim.submitted",
+  complete: "mission.complete",
+};
+
 export function App() {
   const [capabilities] = useState<CapabilityReport>(() =>
     detectCapabilities(createBrowserProbe()),
@@ -92,7 +108,7 @@ export function App() {
   const [deviceSignals] = useState<DeviceSignals>(() => readDeviceSignals());
   const [qualityPreference, setQualityPreference] = useState<QualityProfileId | "auto">("auto");
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => prefersReducedMotion());
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(DEFAULT_MUTED);
   const [announcement, setAnnouncement] = useState(
     "Survey workstation ready. Load a mission to begin.",
   );
@@ -120,6 +136,28 @@ export function App() {
   // (docs/TECHNICAL_DESIGN.md §2).
   const mission = useMission({ bodies: PLANETARY_BODIES, missions: MISSIONS });
   const { snapshot, message, dispatch } = mission;
+
+  // Audio is feedback, never structure (docs/RENDERING_QUALITY_STRATEGY.md §10).
+  // Each phase that means something to a learner has a cue, and every one of
+  // those cues has a visual equivalent, so muting costs no information. The
+  // previous phase is tracked in a ref because a cue must fire on *entering* a
+  // phase, not on every render that happens to be in one.
+  const lastCuedPhase = useRef<string | null>(null);
+  useEffect(() => {
+    const phase = snapshot.phase;
+    if (lastCuedPhase.current === phase) return;
+    lastCuedPhase.current = phase;
+    const cue = PHASE_CUES[phase];
+    if (cue) audio.play(cue);
+  }, [snapshot.phase, audio]);
+
+  // Ambience follows the mission rather than the page: it starts once a mission
+  // is loaded, and stops on unmute, on teardown, and when the learner returns to
+  // an empty catalogue.
+  const hasMission = snapshot.missionId !== null;
+  useEffect(() => {
+    if (!muted) audio.setLoop("ambience.survey", hasMission);
+  }, [muted, hasMission, audio]);
 
   const renderSnapshot = useMemo(
     () => projectRenderSnapshot(snapshot, PLANETARY_BODIES, PRESENTATION_DECLARATIONS),
@@ -267,12 +305,18 @@ export function App() {
     setMuted(next);
     audio.setMuted(next);
     if (!next) {
-      void audio.unlock();
+      // Unmuting is the user gesture the autoplay policy is waiting for.
+      void audio.unlock().then(() => {
+        audio.setLoop("ambience.survey", true);
+        audio.play("ui.confirm");
+      });
+    } else {
+      audio.setLoop("ambience.survey", false);
     }
     setAnnouncement(
       next
         ? "Sound muted."
-        : "Sound unmuted. No audio cues are authored yet — this control exercises the audio seam.",
+        : "Sound unmuted. Sound is optional and repeats nothing you need to read.",
     );
   };
 
@@ -301,8 +345,9 @@ export function App() {
           </p>
           <p className={styles.foundationNote} data-testid="foundation-note">
             Renderer foundation (PS-05), instrument and evidence capture (PS-06),
-            comparison board (PS-07), and the claim, citation, hint, and debrief
-            loop (PS-08). Planetary values are cited in the per-field source
+            comparison board (PS-07), the claim, citation, hint, and debrief loop
+            (PS-08), and the production art and audio pipeline (PS-10). Planetary
+            values are cited in the per-field source
             register. Independent science review is still outstanding, so content
             is shown as unreviewed rather than presented as settled. Final visual
             quality is not claimed.
