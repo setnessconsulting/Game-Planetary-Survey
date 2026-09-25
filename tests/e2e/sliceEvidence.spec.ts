@@ -142,6 +142,14 @@ async function surveyWorld(page: Page, bodyId: string): Promise<void> {
 }
 
 test.describe("@slice slice performance and device evidence", () => {
+  /**
+   * A longer wall-clock budget than the 120s default; see the note in
+   * `verticalSlice.spec.ts` for why PS-10's per-world asset loading outgrew it.
+   * This suite is the most expensive in the repository — it plays the whole
+   * mission and then measures — so it is the first to hit a ceiling the other
+   * specs never reach.
+   */
+  test.describe.configure({ timeout: 300_000 });
   test("@slice records the slice's load, frame, memory, and console evidence", async ({
     page,
   }, testInfo) => {

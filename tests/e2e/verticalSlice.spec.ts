@@ -213,6 +213,22 @@ async function submitDebriefAndComplete(page: Page, expectSupported = true): Pro
 }
 
 test.describe("@slice the guided-mission vertical slice", () => {
+  /**
+   * A longer wall-clock budget than the 120s default, for the reason the config
+   * already gives — these tests are slower than the machine deserves to be
+   * measured on — and one new reason since PS-10: the mission loop now loads a
+   * body's GLB mesh, its albedo and normal maps, and a shared HDR environment
+   * every time the learner changes world, all of it through SwiftShader on a
+   * runner with no GPU. Linux CI measured this spec at 2.7m before failing at
+   * 120s, twice, on a change that touched no code at all.
+   *
+   * This is a harness budget, not a performance claim. It says how long the
+   * gate waits before calling a run hung; it says nothing about how fast the
+   * product is. GPU-qualified numbers are PS-12's, and the frame, load, and
+   * memory rows this suite records are still marked not judgeable under
+   * software rasterization.
+   */
+  test.describe.configure({ timeout: 300_000 });
   test("@slice plays the whole guided mission on a live WebGL2 renderer", async ({
     page,
   }, testInfo) => {
