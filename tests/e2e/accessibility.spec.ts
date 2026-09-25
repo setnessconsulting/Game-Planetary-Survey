@@ -139,8 +139,12 @@ test.describe("automated accessibility", () => {
     }
     await page.getByTestId("compare-button").click();
 
-    // Draft the claim with the keyboard only.
-    await page.getByTestId("draft-claim").focus();
+    // Draft the claim with the keyboard only. Wait for the control to become
+    // actionable first: the form reconciles its defaults one render after the
+    // comparison lands, and pressing Enter on a still-disabled button does nothing.
+    const draft = page.getByTestId("draft-claim");
+    await expect(draft).toBeEnabled();
+    await draft.focus();
     await page.keyboard.press("Enter");
     await expect(page.getByTestId("claim-current")).toBeVisible();
 
@@ -152,7 +156,9 @@ test.describe("automated accessibility", () => {
     await expect(page.getByTestId("cite-count")).toContainText("Cited 2 of 2");
 
     // Submit and open the debrief, again with the keyboard.
-    await page.getByTestId("submit-claim").focus();
+    const submit = page.getByTestId("submit-claim");
+    await expect(submit).toBeEnabled();
+    await submit.focus();
     await page.keyboard.press("Enter");
     await expect(page.getByTestId("claim-submitted")).toBeVisible();
     await page.getByTestId("open-debrief").click();
