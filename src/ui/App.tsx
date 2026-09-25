@@ -56,8 +56,12 @@ import {
 import type { RendererEvent } from "@/renderer";
 
 import { BriefingPanel } from "./BriefingPanel";
+import { CiteEvidence } from "./CiteEvidence";
+import { ClaimForm } from "./ClaimForm";
 import { ComparisonBoard } from "./ComparisonBoard";
+import { Debrief } from "./Debrief";
 import { EvidenceNotebook } from "./EvidenceNotebook";
+import { HintPanel } from "./HintPanel";
 import { InstrumentSelection } from "./InstrumentSelection";
 import { LoopChecklist } from "./LoopChecklist";
 import { ObserveMeasure } from "./ObserveMeasure";
@@ -111,7 +115,10 @@ export function App() {
     [qualityPreference, deviceSignals, backendInUse],
   );
 
-  const mission = useMission({ bodies: PLANETARY_BODIES });
+  // The mission catalogue is injected, never imported by the domain: `openDebrief`
+  // needs the mission's authored facts, and the domain stays a pure leaf
+  // (docs/TECHNICAL_DESIGN.md §2).
+  const mission = useMission({ bodies: PLANETARY_BODIES, missions: MISSIONS });
   const { snapshot, message, dispatch } = mission;
 
   const renderSnapshot = useMemo(
@@ -181,6 +188,23 @@ export function App() {
     (snapshot.phase === "evidenceCapture" ||
       snapshot.phase === "comparison" ||
       snapshot.phase === "claimDrafting");
+
+  const claimDraftEnabled =
+    snapshot.missionId !== null &&
+    (snapshot.phase === "comparison" ||
+      snapshot.phase === "claimDrafting" ||
+      snapshot.phase === "debrief");
+
+  const citeEnabled = snapshot.claim !== null && snapshot.phase === "claimDrafting";
+
+  const openDebriefEnabled = snapshot.phase === "claimSubmitted" && snapshot.evaluation !== null;
+
+  const completeEnabled = snapshot.phase === "debrief" && snapshot.debrief !== null;
+
+  const reviseEnabled =
+    snapshot.phase === "claimSubmitted" ||
+    snapshot.phase === "debrief" ||
+    snapshot.phase === "complete";
 
   useEffect(() => {
     setAnnouncement(message);
@@ -269,10 +293,11 @@ export function App() {
           </p>
           <p className={styles.foundationNote} data-testid="foundation-note">
             Renderer foundation (PS-05), instrument and evidence capture (PS-06),
-            and comparison board (PS-07). Planetary values are cited in the
-            per-field source register. Independent science review is still
-            outstanding, so content is shown as unreviewed rather than presented
-            as settled. Final visual quality is not claimed.
+            comparison board (PS-07), and the claim, citation, hint, and debrief
+            loop (PS-08). Planetary values are cited in the per-field source
+            register. Independent science review is still outstanding, so content
+            is shown as unreviewed rather than presented as settled. Final visual
+            quality is not claimed.
           </p>
         </div>
       </header>
@@ -400,6 +425,66 @@ export function App() {
               compareEnabled={compareEnabled}
               onCompare={() => dispatch({ kind: "compare" })}
             />
+            <HintPanel
+              hints={activeMission?.hints ?? []}
+              hintsUsed={snapshot.hintsUsed}
+              enabled={snapshot.missionId !== null}
+              onRequestHint={() => dispatch({ kind: "requestHint" })}
+            />
+            <ClaimForm
+              mission={activeMission ?? null}
+              comparableFindings={snapshot.comparison}
+              bodies={PLANETARY_BODIES}
+              claim={snapshot.claim}
+              enabled={claimDraftEnabled}
+              onDraft={(draft) => dispatch({ kind: "draftClaim", draft })}
+            />
+            <CiteEvidence
+              claim={snapshot.claim}
+              evidence={snapshot.evidence}
+              bodies={PLANETARY_BODIES}
+              enabled={citeEnabled}
+              onCite={(evidenceIds) => dispatch({ kind: "citeEvidence", evidenceIds })}
+              onSubmit={() => dispatch({ kind: "submitClaim" })}
+            />
+
+            {snapshot.phase === "claimSubmitted" ? (
+              <section aria-labelledby="submitted-heading" data-testid="claim-submitted">
+                <h2 id="submitted-heading">Claim submitted</h2>
+                <p data-testid="claim-submitted-verdict">{snapshot.evaluation?.explanation}</p>
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    data-testid="open-debrief"
+                    disabled={!openDebriefEnabled}
+                    onClick={() => dispatch({ kind: "openDebrief" })}
+                  >
+                    Open debrief
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="revise-after-submit"
+                    disabled={!reviseEnabled}
+                    onClick={() => dispatch({ kind: "reviseClaim" })}
+                  >
+                    Revise claim
+                  </button>
+                </div>
+              </section>
+            ) : null}
+
+            {snapshot.debrief ? (
+              <Debrief
+                debrief={snapshot.debrief}
+                evidence={snapshot.evidence}
+                completion={snapshot.completion}
+                bodies={PLANETARY_BODIES}
+                completeEnabled={completeEnabled}
+                reviseEnabled={reviseEnabled}
+                onComplete={() => dispatch({ kind: "completeMission" })}
+                onRevise={() => dispatch({ kind: "reviseClaim" })}
+              />
+            ) : null}
           </div>
 
           <div className={styles.column}>

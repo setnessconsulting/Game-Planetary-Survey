@@ -67,8 +67,8 @@ export function deriveLoopStatus(snapshot: MissionSnapshot): readonly LoopStepSt
   const captured = snapshot.evidence.length > 0;
   const compared = snapshot.comparison.length > 0;
   const claimed = snapshot.claim !== null;
-  const cited = (snapshot.claim?.citedEvidenceIds.length ?? 0) > 0;
-  const evaluated = snapshot.evaluation !== null;
+  const citedCount = snapshot.claim?.citedEvidenceIds.length ?? 0;
+  const debriefed = snapshot.debrief !== null;
   const complete = snapshot.phase === "complete";
 
   const statusFor = (id: LoopStepId): { status: LoopStepStatus; note: string } => {
@@ -110,18 +110,38 @@ export function deriveLoopStatus(snapshot: MissionSnapshot): readonly LoopStepSt
         return claimed
           ? { status: "done", note: "Claim drafted." }
           : { status: "pending", note: "No claim drafted." };
-      case "citeEvidence":
-        return cited
-          ? { status: "done", note: `${snapshot.claim?.citedEvidenceIds.length ?? 0} observation(s) cited.` }
+      case "citeEvidence": {
+        const citedNote = `${citedCount} observation(s) cited.`;
+        if (snapshot.phase === "claimDrafting" && claimed) {
+          return {
+            status: "active",
+            note: citedCount > 0
+              ? `${citedNote} Submit it when the citation is complete.`
+              : "An uncited claim will not count. Attach the observations behind it.",
+          };
+        }
+        return citedCount > 0
+          ? { status: "done", note: citedNote }
           : { status: "pending", note: "An uncited claim cannot be submitted." };
+      }
       case "debrief":
-        return evaluated
-          ? { status: "done", note: "Debrief produced." }
-          : { status: "pending", note: "Waiting for a submitted claim." };
+        if (debriefed || complete) return { status: "done", note: "Debrief produced." };
+        if (snapshot.phase === "claimSubmitted") {
+          return {
+            status: "active",
+            note: "A claim was submitted. Open the debrief for how the evidence backs it.",
+          };
+        }
+        return { status: "pending", note: "Waiting for a submitted claim." };
       case "reviseOrReplay":
-        return complete
-          ? { status: "done", note: "Mission complete." }
-          : { status: "pending", note: "Available after a debrief." };
+        if (complete) return { status: "done", note: "Mission complete." };
+        if (debriefed) {
+          return {
+            status: "active",
+            note: "Revise the claim in place, or complete the mission — nothing measured is discarded.",
+          };
+        }
+        return { status: "pending", note: "Available after a debrief." };
       default: {
         const unreachable: never = id;
         throw new Error(`Unhandled loop step: ${String(unreachable)}`);

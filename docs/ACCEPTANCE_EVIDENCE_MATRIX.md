@@ -44,7 +44,7 @@ the equivalent does not provide is recorded rather than glossed:
 
 | Required evidence | State |
 |---|---|
-| design source of truth with component/state inventory | delivered — `docs/DESIGN_SYSTEM.md` and `src/design/surfaces.ts`, 13 surfaces × states |
+| design source of truth with component/state inventory | delivered — `docs/DESIGN_SYSTEM.md` and `src/design/surfaces.ts`, 14 surfaces × states |
 | desktop/tablet/phone layouts | delivered as declared breakpoints with per-breakpoint rules, and asserted against `UX_USER_FLOW.md` |
 | dense-data legibility study | delivered as contract — token floor, `--ps-measure`, and 13 measured contrast pairs |
 | motion/audio specs | motion delivered as a four-step hierarchy with a reduced-motion override per duration; audio cue inventory deferred to PS-10 |
@@ -73,6 +73,22 @@ for it:
 One value is shipped as `contested` (the Moon's surface relief, where two agency
 products disagree) and is excluded from every scored path. `catalogueIsScienceReviewed()`
 reports `false`, and it is what PS-11 and PS-14 read.
+
+---
+
+### GAME-372 / PS-08 — mission engine, claim/citation/debrief, hints, and recovery
+
+| Required evidence | State |
+|---|---|
+| state-machine tests | delivered — a legal/illegal transition table over every intent × phase, plus a no-dead-end proof |
+| anti-guessing test (uncited claim rejected) | delivered — an uncited claim is `insufficient-evidence`; scoring reports `right-answer-uncited` without counting it |
+| separate scoring dimensions | delivered — four `ClaimDimensions` plus a word-level outcome; no points, timer, streak, or rank exists in the type |
+| debrief traceability | delivered — every `sourced` fact carries its register ids, and cited observations are named as supporting or refuting |
+| hints that do not answer | delivered — `hintReveal` is ordered and pure; a hint changes only `hintsUsed` |
+| recovery paths | delivered — in-place revision (D-36) and completion on any evaluated claim (D-35) |
+| completion summary | delivered — bounded counts and a verdict; no clock, device, identity, or learner free text |
+| no renderer bypass | delivered — a projection test plus a transition test that no renderer-originated intent can fabricate evidence or a claim |
+| **independent science review** | **outstanding** — GAME-368, unchanged; content ships as unreviewed |
 
 ---
 

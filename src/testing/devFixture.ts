@@ -15,6 +15,7 @@
  */
 
 import type { BodyRecord } from "@/domain/bodies";
+import type { MissionDefinition } from "@/domain/catalog";
 import type { MissionContext } from "@/domain/mission";
 import type { Seed } from "@/domain/random";
 
@@ -91,6 +92,72 @@ export const DEV_FIXTURE_BODIES: readonly BodyRecord[] = [
   },
 ];
 
+/**
+ * A synthetic mission over the fixture bodies, so the pure state machine's
+ * debrief/completion transitions (PS-08) can be tested without importing canonical
+ * content into a domain contract test. It is a fixture, not science: the bodies it
+ * surveys are not real worlds.
+ */
+export const DEV_FIXTURE_MISSION_ID = "dev-survey";
+
+export const DEV_FIXTURE_MISSION: MissionDefinition = {
+  id: DEV_FIXTURE_MISSION_ID,
+  kind: "independent",
+  title: "Fixture survey",
+  brief: "Measure two fixture bodies and claim which is larger.",
+  scaleProperty: "meanRadius",
+  targetBodyIds: [FIXTURE_ALPHA, FIXTURE_BETA],
+  seedBase: FIXTURE_SEED,
+  variantOf: null,
+  targetMinutes: 5,
+  requiredObservations: [
+    {
+      bodyId: FIXTURE_ALPHA,
+      attributeId: "meanRadius",
+      instrumentId: "radiusSounder",
+      purpose: "Measure Fixture Alpha's radius.",
+    },
+    {
+      bodyId: FIXTURE_BETA,
+      attributeId: "meanRadius",
+      instrumentId: "radiusSounder",
+      purpose: "Measure Fixture Beta's radius.",
+    },
+  ],
+  claimTarget: {
+    attributeId: "meanRadius",
+    basis: "magnitude",
+    subject: FIXTURE_BETA,
+    relation: "largerThan",
+    object: FIXTURE_ALPHA,
+    assertion: "Fixture Beta is larger than Fixture Alpha.",
+    requiredEvidence: ["fixture-beta.meanRadius", "fixture-alpha.meanRadius"],
+  },
+  misconceptions: [
+    {
+      id: "misconception.fixture-size",
+      belief: "Fixture Alpha is the larger body.",
+      feedback: "The fixtures measure Alpha at 1,000 km and Beta at 4,000 km, so Beta is larger.",
+      refutedBy: ["fixture-alpha.meanRadius", "fixture-beta.meanRadius"],
+    },
+  ],
+  hints: [
+    { order: 1, text: "Both fixtures need a radius measurement before either can be compared." },
+    { order: 2, text: "Cite both readings before submitting, or the claim cannot be checked." },
+  ],
+  debriefFacts: [
+    {
+      id: "debrief.fixture-size",
+      text: "Your two readings put Fixture Beta at 4,000 km and Fixture Alpha at 1,000 km.",
+      basis: "measured",
+      sourceBasisIds: [],
+    },
+  ],
+  scienceBoundaries: [
+    { id: "boundary.fixture", statement: "These are synthetic fixtures and assert nothing about real bodies." },
+  ],
+};
+
 export function fixtureContext(): MissionContext {
-  return { bodies: DEV_FIXTURE_BODIES };
+  return { bodies: DEV_FIXTURE_BODIES, missions: [DEV_FIXTURE_MISSION] };
 }

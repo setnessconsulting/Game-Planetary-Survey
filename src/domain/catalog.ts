@@ -354,6 +354,20 @@ function validateMissionCompletionPath(
     }
   }
 
+  // Hints are the designed non-punitive recovery path (docs/UX_USER_FLOW.md §4), and
+  // PS-08 reveals them progressively. A mission with none would leave a stuck learner
+  // with no authored route out, so it is a content defect rather than a preference.
+  if (mission.hints.length === 0) {
+    issues.push(
+      issue(
+        "catalog-no-hints",
+        subject,
+        "A mission needs at least one hint: hints are the non-punitive recovery path and " +
+          "are revealed progressively by the mission engine (docs/UX_USER_FLOW.md §4).",
+      ),
+    );
+  }
+
   const orders = mission.hints.map((hint) => hint.order);
   if (new Set(orders).size !== orders.length) {
     issues.push(issue("catalog-hint-order", subject, "Two hints share an order value."));

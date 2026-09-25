@@ -158,9 +158,15 @@ renderer is free to reinterpret as a measurement.
 
 A discriminated union of learner or renderer-originated intentions:
 `selectTarget`, `beginApproach`, `selectInstrument`, `takeMeasurement`,
-`captureEvidence`, `compareBodies`, `submitClaim`, `reviseClaim`, `advanceStep`,
-and similar. Intentions are applied by a pure transition:
+`captureEvidence`, `compareBodies`, `draftClaim`, `citeEvidence`, `submitClaim`,
+`openDebrief`, `completeMission`, `reviseClaim`, `requestHint`, `advanceStep`, and
+similar. Intentions are applied by a pure transition:
 `applyIntent(snapshot, intent, env) -> { snapshot, facts }`.
+
+As of PS-08 the intent list covers the whole frozen loop: a claim is drafted, cited,
+submitted and evaluated, opened as a source-traceable debrief, and completed. The
+mission's authored facts reach the transitions through `MissionContext` (dependency
+injection), so the domain still imports no content (`docs/TECHNICAL_DESIGN.md` §2.1).
 
 **(d) `RenderEvent` — renderer → app (presentation facts, never measurements)**
 

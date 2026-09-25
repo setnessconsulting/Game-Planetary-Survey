@@ -22,19 +22,19 @@
  * The middle two are what make the first one mean anything: without them, a
  * `supported` verdict proves only that the machinery can say yes.
  *
- * ## A note on where a trace currently ends
+ * ## A note on where a trace ends
  *
- * Every trace stops at `claimSubmitted`. No intent in `src/domain/mission.ts`
- * transitions into `debrief` or `complete`, so a mission whose claim is supported
- * nonetheless cannot reach a completed state today. That is PS-08's state machine
- * (scoring and debrief are explicitly its scope), and it is asserted rather than
- * papered over in `tests/content/missionTrace.test.ts` so the gap is a recorded
- * requirement rather than a surprise: a fixture that could not reach the end of
- * the frozen loop would otherwise be mistaken for a fixture that did.
+ * PS-08 (GAME-372) closed the gap this note used to record. `openDebrief` and
+ * `completeMission` now transition into `debrief` and `complete`, and `reviseClaim`
+ * reopens the claim in place instead of forcing a re-measure, so a trace can run the
+ * frozen loop end to end. `tests/content/missionTrace.test.ts` exercises that end to
+ * end and still pins the refusals, because an illegal action that is silently
+ * ignored is a defect.
  */
 
-import { canonicalJson, digestOf } from "@/domain/canonical";
 import type { BodyRecord } from "@/domain/bodies";
+import { canonicalJson, digestOf } from "@/domain/canonical";
+import type { MissionDefinition } from "@/domain/catalog";
 import { evidenceForAttribute, type EvidenceRecord } from "@/domain/evidence";
 import {
   applyIntent,
@@ -93,8 +93,10 @@ export function runMissionTrace(input: {
   readonly steps: readonly TraceStep[];
   readonly bodies: readonly BodyRecord[];
   readonly seed: Seed;
+  /** Supplied when the trace reaches the debrief, which quotes the mission's facts. */
+  readonly missions?: readonly MissionDefinition[];
 }): MissionTraceResult {
-  const context = { bodies: input.bodies };
+  const context = { bodies: input.bodies, missions: input.missions ?? [] };
   const results: TraceStepResult[] = [];
   const rejections: string[] = [];
   let snapshot = initialMissionSnapshot(input.seed);

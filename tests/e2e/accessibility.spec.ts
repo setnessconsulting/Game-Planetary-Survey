@@ -120,6 +120,82 @@ test.describe("automated accessibility", () => {
     await expect(page.getByTestId("briefing-panel")).toBeVisible();
     await expect(page.getByTestId("evidence-notebook")).toBeVisible();
     await expect(page.getByTestId("comparison-board")).toBeVisible();
+    // The claim and citation surfaces must reflow too (PS-08).
+    await expect(page.getByTestId("claim-form")).toBeVisible();
+    await expect(page.getByTestId("cite-evidence")).toBeVisible();
+  });
+
+  test("@a11y runs the claim, citation, debrief, and completion route by keyboard", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.getByTestId("load-mission-survey-001-sizes").click();
+
+    for (const bodyId of ["mars", "venus"] as const) {
+      await page.getByTestId(`select-target-${bodyId}`).click();
+      await page.getByTestId("select-instrument-radiusSounder").click();
+      await page.getByTestId("measure-button").click();
+      await page.getByTestId("capture-evidence").click();
+    }
+    await page.getByTestId("compare-button").click();
+
+    // Draft the claim with the keyboard only. Wait for the control to become
+    // actionable first: the form reconciles its defaults one render after the
+    // comparison lands, and pressing Enter on a still-disabled button does nothing.
+    const draft = page.getByTestId("draft-claim");
+    await expect(draft).toBeEnabled();
+    await draft.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("claim-current")).toBeVisible();
+
+    // Cite both observations from the notebook.
+    const boxes = page.getByTestId("cite-evidence").getByRole("checkbox");
+    await expect(boxes).toHaveCount(2);
+    await boxes.nth(0).check();
+    await boxes.nth(1).check();
+    await expect(page.getByTestId("cite-count")).toContainText("Cited 2 of 2");
+
+    // Submit and open the debrief, again with the keyboard.
+    const submit = page.getByTestId("submit-claim");
+    await expect(submit).toBeEnabled();
+    await submit.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("claim-submitted")).toBeVisible();
+    await page.getByTestId("open-debrief").click();
+    await expect(page.getByTestId("debrief-verdict")).toContainText("Supported");
+
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(
+      results.violations,
+      results.violations.map((violation) => `${violation.id}: ${violation.help}`).join("\n"),
+    ).toEqual([]);
+
+    await page.getByTestId("complete-mission").click();
+    await expect(page.getByTestId("debrief-completion")).toContainText(
+      "Met by the cited evidence",
+    );
+  });
+
+  test("@a11y reveals hints progressively and changes no other state", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("load-mission-survey-001-sizes").click();
+    await expect(page.getByTestId("hints-count")).toContainText("0 of 3 hints shown");
+
+    await page.getByTestId("request-hint").click();
+    await expect(page.getByTestId("hints-count")).toContainText("1 of 3 hints shown");
+    await expect(page.getByTestId("hints-list")).toContainText("Read the brief again");
+    // A hint performs no required choice.
+    await expect(page.getByTestId("claim-current")).toHaveCount(0);
+
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+    expect(
+      results.violations,
+      results.violations.map((violation) => `${violation.id}: ${violation.help}`).join("\n"),
+    ).toEqual([]);
   });
 
   test("@a11y stays usable at 200% text scaling", async ({ page }) => {

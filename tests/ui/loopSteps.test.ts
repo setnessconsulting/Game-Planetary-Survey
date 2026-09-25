@@ -100,7 +100,7 @@ describe("deriveLoopStatus", () => {
     expect(statusOf(snapshot, "makeClaim").status).toBe("pending");
   });
 
-  it("keeps cite-evidence pending until a claim actually cites something", () => {
+  it("makes cite-evidence the current task until a claim actually cites something", () => {
     const snapshot = advance(initialMissionSnapshot(3), [
       { kind: "loadMission", missionId: "m", seed: 3 },
       { kind: "beginBriefing" },
@@ -125,8 +125,9 @@ describe("deriveLoopStatus", () => {
       },
     ]);
     expect(statusOf(snapshot, "makeClaim").status).toBe("done");
-    expect(statusOf(snapshot, "citeEvidence").status).toBe("pending");
-    expect(statusOf(snapshot, "citeEvidence").note).toContain("uncited claim cannot be submitted");
+    // The claim exists but cites nothing, so the citation step is the current task.
+    expect(statusOf(snapshot, "citeEvidence").status).toBe("active");
+    expect(statusOf(snapshot, "citeEvidence").note).toContain("uncited claim");
   });
 
   it("is pure: the same snapshot derives the same statuses", () => {

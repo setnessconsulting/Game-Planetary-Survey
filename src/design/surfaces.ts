@@ -174,9 +174,8 @@ export const SURFACES: readonly SurfaceSpec[] = [
     touchTarget: null,
     keyboard: "Read-only text; no focus stop of its own beyond the heading.",
     motionTokens: [],
-    maturity: "partial",
-    knownGap:
-      "Authored missions load from the shell (PS-05). Instrument selection, measure, and capture are wired (PS-06). Independent science review of the loaded content remains outstanding (GAME-368).",
+    maturity: "implemented",
+    knownGap: null,
   },
 
   {
@@ -462,8 +461,8 @@ export const SURFACES: readonly SurfaceSpec[] = [
     touchTarget: "Every field and the submit control are at least --ps-touch-min tall.",
     keyboard: "Standard form semantics: tab between fields, arrow keys within a group, enter submits when valid.",
     motionTokens: [],
-    maturity: "specified",
-    knownGap: "Implementation belongs to PS-08. The domain contract (claim dimensions and verdicts) already exists and is traced.",
+    maturity: "implemented",
+    knownGap: null,
   },
 
   {
@@ -509,8 +508,8 @@ export const SURFACES: readonly SurfaceSpec[] = [
     touchTarget: "Each citation checkbox row is a full-width label at least --ps-touch-min tall.",
     keyboard: "Checkboxes are individually focusable and space toggles them; the submit button follows them in focus order.",
     motionTokens: ["--ps-motion-fast"],
-    maturity: "specified",
-    knownGap: "Implementation belongs to PS-08.",
+    maturity: "implemented",
+    knownGap: null,
   },
 
   {
@@ -555,9 +554,8 @@ export const SURFACES: readonly SurfaceSpec[] = [
     touchTarget: null,
     keyboard: "Read-only; the revise control that follows it is keyboard reachable.",
     motionTokens: ["--ps-motion-base"],
-    maturity: "specified",
-    knownGap:
-      "The `debrief` phase is modelled in the domain but no intent transitions into it, so this surface cannot be reached yet. Closing that is PS-08's; it is recorded as open constraint 6 in docs/STATUS.md.",
+    maturity: "implemented",
+    knownGap: null,
   },
 
   {
@@ -586,11 +584,11 @@ export const SURFACES: readonly SurfaceSpec[] = [
         nonColorSignal: "The variant's identity is announced in text.",
       },
       {
-        id: "revision-cost",
-        label: "Revision needs a reading",
+        id: "revision-in-place",
+        label: "Revision keeps the notebook",
         description:
-          "Revision currently re-enters the survey phase, so it costs one additional instrument reading even when the notebook already answers the question.",
-        nonColorSignal: "The control says so before it is used, rather than surprising the learner afterwards.",
+          "Revising reopens the claim in place: the notebook and the drafted claim are kept, the previous verdict is cleared, and the learner can re-cite and resubmit without taking another reading.",
+        nonColorSignal: "The control's label states what is preserved before it is used.",
       },
     ],
     nonColorEncoding: "Both actions are labelled buttons; neither is distinguished by colour.",
@@ -602,9 +600,57 @@ export const SURFACES: readonly SurfaceSpec[] = [
     touchTarget: "Both controls are at least --ps-touch-min tall.",
     keyboard: "Standard button semantics; focus moves to the survey's first control after a revision.",
     motionTokens: ["--ps-motion-base", "--ps-motion-slow"],
-    maturity: "partial",
-    knownGap:
-      "The loop's last two steps are unreachable until PS-08 adds the completion transition (open constraint 6), and revision currently costs a redundant reading (open constraint 7). The spec here documents the cost rather than hiding it.",
+    maturity: "implemented",
+    knownGap: null,
+  },
+
+  {
+    id: "hints",
+    kind: "global-state",
+    loopStep: null,
+    name: "Progressive hints",
+    purpose:
+      "Offer authored, evidence-oriented hints one at a time, in any step of the loop, without ever making the learner's scientific choice for them (docs/UX_USER_FLOW.md §4).",
+    semantics: [
+      "A `section` labelled by its own `h2`, containing a real button whose accessible name states the action.",
+      "Each revealed hint is an item in an ordered list, so its place in the sequence is text; the revealed and remaining counts are announced politely.",
+    ],
+    states: [
+      {
+        id: "unused",
+        label: "No hint requested",
+        description:
+          "The control is offered and says what a hint does — points at what to look at next — before it is used.",
+        nonColorSignal: "The count reads '0 of N hints shown' as text.",
+      },
+      {
+        id: "revealed",
+        label: "Hints shown",
+        description:
+          "Each requested hint appears in authored order, added to the list rather than replacing the last one.",
+        nonColorSignal: "The count of shown and remaining hints is a sentence, and the new hint is announced.",
+      },
+      {
+        id: "exhausted",
+        label: "All hints shown",
+        description:
+          "Every authored hint has been revealed; the control is disabled and the surface says there are no more for this mission rather than going silent.",
+        nonColorSignal: "The count says so in words, not by the control alone appearing inert.",
+      },
+    ],
+    nonColorEncoding:
+      "Hint state is a count in words plus an ordered list; the exhausted state is stated in text, not implied by a disabled control.",
+    showsVisualData: false,
+    textualEquivalent: null,
+    usesThreeDView: false,
+    nonPrecisionAlternative: null,
+    interactive: true,
+    touchTarget: "The request control is at least --ps-touch-min tall.",
+    keyboard:
+      "A real button; each requested hint is announced through the live region and is not required to be read from anywhere else.",
+    motionTokens: [],
+    maturity: "implemented",
+    knownGap: null,
   },
 
   {

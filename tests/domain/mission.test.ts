@@ -4,11 +4,20 @@ import {
   applyIntent,
   forwardIntentsIn,
   initialMissionSnapshot,
+  LEGAL_PHASES,
   MISSION_PHASES,
   type IntentResult,
+  type MissionIntent,
   type MissionSnapshot,
 } from "@/domain/mission";
-import { FIXTURE_ALPHA, FIXTURE_BETA, FIXTURE_GAMMA, fixtureContext } from "@/testing/devFixture";
+import { measure } from "@/domain/measurement";
+import {
+  DEV_FIXTURE_MISSION_ID,
+  FIXTURE_ALPHA,
+  FIXTURE_BETA,
+  FIXTURE_GAMMA,
+  fixtureContext,
+} from "@/testing/devFixture";
 
 const context = fixtureContext();
 
@@ -204,5 +213,196 @@ describe("guarantees", () => {
     const second = applyIntent(first.snapshot, { kind: "requestHint" }, context);
     if (second.kind !== "applied") throw new Error("expected applied");
     expect(second.snapshot.revision).toBe(first.snapshot.revision + 1);
+  });
+});
+
+describe("the PS-08 claim loop", () => {
+  /**
+   * A debrief-phase snapshot with a submitted claim, a matching evaluation, an
+   * opened debrief, and a fresh measurement still in hand (so `captureEvidence`'s
+   * own guard is satisfied when the transition matrix probes it).
+   */
+  function richBase(seed = 5): MissionSnapshot {
+    let snapshot = surveyToComparison(seed);
+    const [alpha, beta] = snapshot.evidence;
+    snapshot = run(snapshot, [
+      {
+        kind: "draftClaim",
+        draft: {
+          attributeId: "meanRadius",
+          subject: FIXTURE_BETA,
+          relation: "largerThan",
+          object: FIXTURE_ALPHA,
+          citedEvidenceIds: [alpha?.id ?? "", beta?.id ?? ""],
+        },
+      },
+      { kind: "submitClaim" },
+      { kind: "openDebrief" },
+    ]);
+    // A fresh measurement of an uncaptured world, so `captureEvidence`'s own
+    // duplicate guard is satisfied when the transition matrix probes it.
+    const measured = measure(
+      { instrumentId: "radiusSounder", bodyId: FIXTURE_GAMMA, attributeId: "meanRadius", seed: snapshot.seed },
+      context.bodies,
+    );
+    if (measured.kind !== "measured") throw new Error("the fixture should measure");
+    return { ...snapshot, lastMeasurement: measured };
+  }
+
+  it("covers every legal and illegal (intent, phase) pair against the declared table", () => {
+    const base = richBase();
+    const representative: readonly MissionIntent[] = [
+      { kind: "loadMission", missionId: DEV_FIXTURE_MISSION_ID, seed: 1 },
+      { kind: "beginBriefing" },
+      { kind: "selectTarget", bodyId: FIXTURE_ALPHA },
+      { kind: "selectInstrument", instrumentId: "radiusSounder" },
+      { kind: "measure", attributeId: "meanRadius" },
+      { kind: "captureEvidence" },
+      { kind: "compare" },
+      {
+        kind: "draftClaim",
+        draft: {
+          attributeId: "meanRadius",
+          subject: FIXTURE_BETA,
+          relation: "largerThan",
+          object: FIXTURE_ALPHA,
+          citedEvidenceIds: [],
+        },
+      },
+      { kind: "citeEvidence", evidenceIds: base.evidence.map((record) => record.id) },
+      { kind: "submitClaim" },
+      { kind: "openDebrief" },
+      { kind: "completeMission" },
+      { kind: "reviseClaim" },
+      { kind: "requestHint" },
+      { kind: "reset" },
+    ];
+
+    const mismatches: string[] = [];
+    for (const intent of representative) {
+      for (const phase of MISSION_PHASES) {
+        const result = applyIntent({ ...base, phase }, intent, context);
+        const declaredLegal = LEGAL_PHASES[intent.kind].includes(phase);
+        if (declaredLegal !== (result.kind === "applied")) {
+          mismatches.push(`${intent.kind} in ${phase}`);
+        }
+      }
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it("attaches cited evidence to a drafted claim and refuses ids it does not hold", () => {
+    let snapshot = surveyToComparison();
+    const [alpha] = snapshot.evidence;
+    snapshot = run(snapshot, [
+      {
+        kind: "draftClaim",
+        draft: {
+          attributeId: "meanRadius",
+          subject: FIXTURE_BETA,
+          relation: "largerThan",
+          object: FIXTURE_ALPHA,
+          citedEvidenceIds: [],
+        },
+      },
+      { kind: "citeEvidence", evidenceIds: [alpha?.id ?? ""] },
+    ]);
+    expect(snapshot.claim?.citedEvidenceIds).toEqual([alpha?.id]);
+
+    const rejected = applyIntent(
+      snapshot,
+      { kind: "citeEvidence", evidenceIds: ["not-a-record"] },
+      context,
+    );
+    expect(rejected.kind).toBe("rejected");
+    // A refusal changes nothing: the citation is untouched.
+    expect(rejected.snapshot.claim?.citedEvidenceIds).toEqual([alpha?.id]);
+  });
+
+  it("counts claim attempts across revisions", () => {
+    expect(richBase().claimAttempts).toBe(1);
+    const after = run(richBase(), [{ kind: "reviseClaim" }, { kind: "submitClaim" }]);
+    expect(after.claimAttempts).toBe(2);
+  });
+
+  it("reopens the claim in place and clears the stale verdict", () => {
+    const before = richBase();
+    const after = run(before, [{ kind: "reviseClaim" }]);
+    expect(after.phase).toBe("claimDrafting");
+    expect(after.claim).not.toBeNull();
+    expect(after.evaluation).toBeNull();
+    expect(after.debrief).toBeNull();
+    expect(after.completion).toBeNull();
+    // Nothing measured is discarded.
+    expect(after.evidence).toEqual(before.evidence);
+  });
+
+  it("builds a source-traceable debrief and a bounded completion summary", () => {
+    const base = richBase();
+    const debrief = base.debrief;
+    expect(debrief).not.toBeNull();
+    expect(debrief?.verdict).toBe("supported");
+    expect(debrief?.missionId).toBe(DEV_FIXTURE_MISSION_ID);
+    for (const fact of debrief?.facts ?? []) {
+      if (fact.basis === "sourced") expect(fact.sourceIds.length).toBeGreaterThan(0);
+      else expect(fact.sourceIds).toEqual([]);
+    }
+
+    const completed = applyIntent(base, { kind: "completeMission" }, context);
+    if (completed.kind !== "applied") throw new Error("completion should be applied");
+    expect(completed.snapshot.phase).toBe("complete");
+    const summary = completed.snapshot.completion;
+    expect(summary?.targetMet).toBe(true);
+    expect(summary?.observationsCaptured).toBe(2);
+    // Bounded facts only: no clock, identity, or free text.
+    expect(Object.keys(summary ?? {}).sort()).toEqual([
+      "citationCount",
+      "claimAttempts",
+      "dimensions",
+      "evidenceCount",
+      "hintsUsed",
+      "missionId",
+      "observationsCaptured",
+      "observationsRequired",
+      "seed",
+      "targetMet",
+      "verdict",
+    ]);
+  });
+
+  it("refuses to complete before the debrief is opened", () => {
+    const submitted = run(surveyToComparison(), [
+      {
+        kind: "draftClaim",
+        draft: {
+          attributeId: "meanRadius",
+          subject: FIXTURE_BETA,
+          relation: "largerThan",
+          object: FIXTURE_ALPHA,
+          citedEvidenceIds: [],
+        },
+      },
+      { kind: "submitClaim" },
+    ]);
+    expect(applyIntent(submitted, { kind: "completeMission" }, context).kind).toBe("rejected");
+  });
+
+  it("rejects openDebrief when the caller supplied no mission definitions", () => {
+    const submitted = run(surveyToComparison(), [
+      {
+        kind: "draftClaim",
+        draft: {
+          attributeId: "meanRadius",
+          subject: FIXTURE_BETA,
+          relation: "largerThan",
+          object: FIXTURE_ALPHA,
+          citedEvidenceIds: [],
+        },
+      },
+      { kind: "submitClaim" },
+    ]);
+    const result = applyIntent(submitted, { kind: "openDebrief" }, { bodies: context.bodies });
+    expect(result.kind).toBe("rejected");
+    if (result.kind === "rejected") expect(result.reason).toContain("debrief facts");
   });
 });

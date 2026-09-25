@@ -89,6 +89,7 @@ export type ValidationIssueCode =
   | "catalog-v1-scope"
   | "catalog-misconception-incomplete"
   | "catalog-hint-order"
+  | "catalog-no-hints"
   | "catalog-contested-value-required"
   | "catalog-debrief-fact-unsourced"
   | "catalog-presentation-unlicensed"

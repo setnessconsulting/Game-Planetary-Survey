@@ -236,15 +236,7 @@ export function evaluateClaim(
         "so the proportion has no meaning. Capture a radius measurement for both worlds.",
     };
   }
-  const larger = Math.max(Math.abs(subjectValue), Math.abs(objectValue));
-  const relativeDifference = larger === 0 ? 0 : Math.abs(subjectValue - objectValue) / larger;
-
-  const relationHolds =
-    claim.relation === "largerThan"
-      ? subjectValue > objectValue
-      : claim.relation === "smallerThan"
-        ? subjectValue < objectValue
-        : relativeDifference <= SAME_AS_RELATIVE_TOLERANCE;
+  const relationHolds = claimRelationHolds(claim.relation, subjectValue, objectValue);
 
   const dimensions: ClaimDimensions = {
     citationCoverage,
@@ -286,14 +278,39 @@ export function evaluateClaim(
  *
  * For a proportional claim this is the measured value divided by the same world's
  * mean radius, computed in canonical units so the ratio is dimensionless.
+ *
+ * Exported because PS-08's scoring re-uses the exact arithmetic that
+ * `evaluateClaim` uses, so a claim can be checked against the learner's whole
+ * notebook (not only the subset they cited) without a second implementation that
+ * could disagree with this one.
  */
-function claimBasisMagnitude(
+export function claimBasisMagnitude(
   record: EvidenceRecord,
   radius: EvidenceRecord | undefined,
 ): number {
   if (!radius) return Number.NaN;
   const radiusMetres = canonicalMagnitude(radius.reading);
   return radiusMetres === 0 ? Number.NaN : canonicalMagnitude(record.reading) / radiusMetres;
+}
+
+/**
+ * Does a stated relation follow from two values?
+ *
+ * Extracted from `evaluateClaim` so scoring can ask the same question of the
+ * notebook's values as the evaluator asks of the cited ones. `sameAs` is a
+ * tolerance, not an equality: two worlds within
+ * `SAME_AS_RELATIVE_TOLERANCE` of each other are "about the same".
+ */
+export function claimRelationHolds(
+  relation: ClaimRelation,
+  subjectValue: number,
+  objectValue: number,
+): boolean {
+  if (relation === "largerThan") return subjectValue > objectValue;
+  if (relation === "smallerThan") return subjectValue < objectValue;
+  const larger = Math.max(Math.abs(subjectValue), Math.abs(objectValue));
+  const relativeDifference = larger === 0 ? 0 : Math.abs(subjectValue - objectValue) / larger;
+  return relativeDifference <= SAME_AS_RELATIVE_TOLERANCE;
 }
 
 /** Human-readable relation, used by the UI and by debrief text. */
