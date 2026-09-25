@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { markerGlyph } from "@/design/tokens";
 import { deriveLoopStatus, LOOP_STEPS, statusLabel, statusMarker } from "@/ui/loopSteps";
 import { applyIntent, initialMissionSnapshot, type MissionSnapshot } from "@/domain/mission";
 import { FIXTURE_ALPHA, FIXTURE_BETA, fixtureContext } from "@/testing/devFixture";
@@ -138,9 +139,15 @@ describe("deriveLoopStatus", () => {
 
 describe("non-color status encodings", () => {
   it("provides a text marker and label for every status", () => {
-    expect(statusMarker("done")).toBe("[\u2713]");
-    expect(statusMarker("active")).toBe("[\u25B8]");
-    expect(statusMarker("pending")).toBe("[ ]");
+    // The glyphs come from the design tokens, so this test also fails if the
+    // stylesheet and the UI stop agreeing on a required non-colour encoding.
+    expect(statusMarker("done")).toBe(`[${markerGlyph("done")}]`);
+    expect(statusMarker("active")).toBe(`[${markerGlyph("active")}]`);
+    expect(statusMarker("pending")).toBe(`[${markerGlyph("pending")}]`);
+    expect(statusMarker("pending")).toBe("[\u00B7]");
+    for (const status of ["done", "active", "pending"] as const) {
+      expect(statusMarker(status)).toMatch(/^\[.\]$/);
+    }
     expect(statusLabel("done")).toBe("Done");
     expect(statusLabel("active")).toBe("Current");
     expect(statusLabel("pending")).toBe("Not yet");

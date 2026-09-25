@@ -22,13 +22,16 @@
     "test:host:run": "playwright test --config=playwright.host.config.ts",
     "test:a11y:run": "playwright test --config=playwright.config.ts --grep @a11y",
     "serve:nested-host": "node scripts/nested-host-server.mjs",
+    "build:tokens": "node scripts/build-tokens.mjs",
+    "check:tokens": "node scripts/build-tokens.mjs --check",
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:privacy": "node scripts/check-privacy-surface.mjs",
     "check:assets": "node scripts/check-asset-pipeline.mjs",
+    "check:design": "node scripts/check-design-system.mjs",
     "report:bundle": "node scripts/report-bundle-size.mjs",
     "release:manifest": "node scripts/create-release-manifest.mjs dist",
     "release:check": "node scripts/create-release-manifest.mjs dist --check",
-    "verify": "npm run typecheck && npm run lint && npm run test:coverage && npm run check:architecture && npm run check:privacy && npm run check:assets && npm run build && npm run report:bundle && npm run release:manifest && npm run release:check"
+    "verify": "npm run typecheck && npm run lint && npm run test:coverage && npm run check:architecture && npm run check:privacy && npm run check:assets && npm run check:tokens && npm run check:design && npm run build && npm run report:bundle && npm run release:manifest && npm run release:check"
   },
   "dependencies": {
     "@babylonjs/core": "9.28.0",

@@ -86,8 +86,28 @@ button {
   background: var(--ps-surface-2);
   border: 1px solid var(--ps-border-strong);
   border-radius: var(--ps-radius-md);
+  min-height: var(--ps-control-height);
   padding: var(--ps-space-2) var(--ps-space-4);
   transition: background var(--ps-motion-fast) var(--ps-ease);
+}
+
+/*
+ * Touch padding (docs/ACCESSIBILITY.md A-3).
+ *
+ * On a coarse pointer the hit area is grown to the touch minimum rather than the
+ * control being drawn that tall, which is what --ps-control-height's purpose note
+ * promises: a dense toolbar stays dense on a mouse and stays reachable by thumb.
+ */
+@media (pointer: coarse) {
+  button,
+  select,
+  input[type="checkbox"] {
+    min-height: var(--ps-touch-min);
+  }
+
+  label:has(input[type="checkbox"]) {
+    min-height: var(--ps-touch-min);
+  }
 }
 
 button:hover:not(:disabled) {
@@ -103,6 +123,7 @@ select {
   background: var(--ps-surface-2);
   border: 1px solid var(--ps-border-strong);
   border-radius: var(--ps-radius-md);
+  min-height: var(--ps-control-height);
   padding: var(--ps-space-2) var(--ps-space-3);
 }
 

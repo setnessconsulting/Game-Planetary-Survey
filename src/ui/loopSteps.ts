@@ -10,6 +10,7 @@
  * mission content, which GAME-364 forbids.
  */
 
+import { markerGlyph } from "@/design/tokens";
 import type { MissionSnapshot } from "@/domain/mission";
 
 export type LoopStepId =
@@ -134,15 +135,23 @@ export function deriveLoopStatus(snapshot: MissionSnapshot): readonly LoopStepSt
   });
 }
 
-/** Non-color marker for a step status (docs/ACCESSIBILITY.md A-9). */
+/**
+ * Non-color marker for a step status (docs/ACCESSIBILITY.md A-9).
+ *
+ * The glyph comes from `src/design/tokens.ts`, which is the single definition of
+ * every required non-colour encoding. The brackets are presentation; the glyph is
+ * the design token. Before this indirection the glyph was duplicated here and had
+ * already drifted from the stylesheet: the tokens declared a middle dot for a
+ * not-yet-reached step while this function drew an empty bracket.
+ */
 export function statusMarker(status: LoopStepStatus): string {
   switch (status) {
     case "done":
-      return "[\u2713]";
+      return `[${markerGlyph("done")}]`;
     case "active":
-      return "[\u25B8]";
+      return `[${markerGlyph("active")}]`;
     case "pending":
-      return "[ ]";
+      return `[${markerGlyph("pending")}]`;
     default: {
       const unreachable: never = status;
       return unreachable;
