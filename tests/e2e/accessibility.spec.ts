@@ -63,6 +63,50 @@ test.describe("automated accessibility", () => {
     expect(Number.parseFloat(outline?.width ?? "0")).toBeGreaterThan(0);
   });
 
+  test("@a11y has no detectable violations after comparison", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("load-mission-survey-001-sizes").click();
+
+    for (const bodyId of ["mars", "venus"] as const) {
+      await page.getByTestId(`select-target-${bodyId}`).click();
+      await page.getByTestId("select-instrument-radiusSounder").click();
+      await page.getByTestId("measure-button").click();
+      await page.getByTestId("capture-evidence").click();
+    }
+
+    await page.getByTestId("compare-button").click();
+    await expect(page.getByTestId("comparison-table-meanRadius")).toBeVisible();
+
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
+
+    expect(
+      results.violations,
+      results.violations.map((violation) => `${violation.id}: ${violation.help}`).join("\n"),
+    ).toEqual([]);
+  });
+
+  test("@a11y reaches Compare with the keyboard after two captures", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("load-mission-survey-001-sizes").click();
+
+    for (const bodyId of ["mars", "venus"] as const) {
+      await page.getByTestId(`select-target-${bodyId}`).click();
+      await page.getByTestId("select-instrument-radiusSounder").click();
+      await page.getByTestId("measure-button").click();
+      await page.getByTestId("capture-evidence").click();
+    }
+
+    const compare = page.getByTestId("compare-button");
+    await compare.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("comparison-table-meanRadius")).toBeVisible();
+    await expect(
+      page.getByTestId("comparison-table-meanRadius").locator("thead th"),
+    ).toHaveCount(4);
+  });
+
   test("@a11y reflows without horizontal overflow at 320 CSS px", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto("/");
@@ -75,6 +119,7 @@ test.describe("automated accessibility", () => {
 
     await expect(page.getByTestId("briefing-panel")).toBeVisible();
     await expect(page.getByTestId("evidence-notebook")).toBeVisible();
+    await expect(page.getByTestId("comparison-board")).toBeVisible();
   });
 
   test("@a11y stays usable at 200% text scaling", async ({ page }) => {

@@ -6,8 +6,8 @@
  * Babylon owns the scene, camera, and frame loop. The only channel between them is
  * typed snapshots, intents, and events (docs/TECHNICAL_DESIGN.md §4).
  *
- * PS-06 wires instrument selection, measurement, and evidence capture on the
- * PS-05 shell. Independent science review remains outstanding and is disclosed,
+ * PS-07 adds the comparison board and accessible equivalents on the PS-06
+ * survey path. Independent science review remains outstanding and is disclosed,
  * not upgraded into "reviewed".
  */
 
@@ -56,6 +56,7 @@ import {
 import type { RendererEvent } from "@/renderer";
 
 import { BriefingPanel } from "./BriefingPanel";
+import { ComparisonBoard } from "./ComparisonBoard";
 import { EvidenceNotebook } from "./EvidenceNotebook";
 import { InstrumentSelection } from "./InstrumentSelection";
 import { LoopChecklist } from "./LoopChecklist";
@@ -175,6 +176,12 @@ export function App() {
     snapshot.lastMeasurement?.kind === "measured" &&
     (snapshot.phase === "observing" || snapshot.phase === "evidenceCapture");
 
+  const compareEnabled =
+    snapshot.missionId !== null &&
+    (snapshot.phase === "evidenceCapture" ||
+      snapshot.phase === "comparison" ||
+      snapshot.phase === "claimDrafting");
+
   useEffect(() => {
     setAnnouncement(message);
   }, [message]);
@@ -261,11 +268,11 @@ export function App() {
             back up. This is a survey, not a fact quiz.
           </p>
           <p className={styles.foundationNote} data-testid="foundation-note">
-            Renderer foundation build (PS-05) with instrument and evidence capture
-            (PS-06). Planetary values are cited in the per-field source register.
-            Independent science review is still outstanding, so content is shown as
-            unreviewed rather than presented as settled. Final visual quality is not
-            claimed.
+            Renderer foundation (PS-05), instrument and evidence capture (PS-06),
+            and comparison board (PS-07). Planetary values are cited in the
+            per-field source register. Independent science review is still
+            outstanding, so content is shown as unreviewed rather than presented
+            as settled. Final visual quality is not claimed.
           </p>
         </div>
       </header>
@@ -386,6 +393,13 @@ export function App() {
             />
             <LoopChecklist steps={loopStatus} />
             <EvidenceNotebook records={snapshot.evidence} bodies={PLANETARY_BODIES} />
+            <ComparisonBoard
+              evidence={snapshot.evidence}
+              findings={snapshot.comparison}
+              bodies={PLANETARY_BODIES}
+              compareEnabled={compareEnabled}
+              onCompare={() => dispatch({ kind: "compare" })}
+            />
           </div>
 
           <div className={styles.column}>

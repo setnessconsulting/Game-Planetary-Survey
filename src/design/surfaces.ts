@@ -417,8 +417,8 @@ export const SURFACES: readonly SurfaceSpec[] = [
     touchTarget: "The compare control and the table's own controls are at least --ps-touch-min tall.",
     keyboard: "Comparison is requested from a control; the table is navigable with headers announced.",
     motionTokens: ["--ps-motion-base", "--ps-motion-slow", "--ps-motion-camera"],
-    maturity: "specified",
-    knownGap: "Implementation belongs to PS-07.",
+    maturity: "implemented",
+    knownGap: null,
   },
 
   {

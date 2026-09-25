@@ -322,6 +322,16 @@ test.describe("planetary survey shell", () => {
     await page.getByTestId("capture-evidence").click();
     await expect(page.getByTestId("notebook-table")).toContainText("Mars");
     await expect(page.getByTestId("notebook-table")).toContainText("Radius sounder");
+
+    await page.getByTestId("select-target-venus").click();
+    await page.getByTestId("select-instrument-radiusSounder").click();
+    await page.getByTestId("measure-button").click();
+    await page.getByTestId("capture-evidence").click();
+    await page.getByTestId("compare-button").click();
+    await expect(page.getByTestId("comparison-table-meanRadius")).toContainText("Venus");
+    await expect(page.getByTestId("comparison-statement-meanRadius")).toContainText(
+      "largest to smallest",
+    );
   });
 });
 
