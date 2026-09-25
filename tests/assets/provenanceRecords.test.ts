@@ -182,7 +182,9 @@ describe("generator provenance", () => {
       if (record.creation_method !== "generated") continue;
       const match = /^regenerate: node (scripts\/[\w.-]+)$/.exec(record.source_reference);
       if (!match?.[1]) continue;
-      const path = join(root, match[1].replace(/\//g, "\\"));
+      // Manifest paths are POSIX by contract; split rather than substituting a
+      // separator, so this resolves on POSIX CI and on a Windows checkout alike.
+      const path = join(root, ...match[1].split("/"));
       expect(existsSyncSafe(path), `${match[1]} referenced by ${record.asset_id}`).toBe(true);
     }
   });
