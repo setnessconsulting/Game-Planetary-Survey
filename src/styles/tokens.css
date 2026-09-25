@@ -1,90 +1,172 @@
 /**
- * Design tokens.
+ * Design tokens — GENERATED FILE, DO NOT EDIT.
  *
- * Tokens exist for type scale, spacing, elevation, FOCUS, motion, and semantic
- * mission states — including non-color encodings, because no required
- * distinction may be carried by color alone (docs/ACCESSIBILITY.md A-9).
+ * Source of truth: `src/design/tokens.ts`, where every token carries the reason it
+ * exists. Regenerate with `npm run build:tokens`; `npm run check:tokens` fails the
+ * build when this file and that source disagree, so hand edits here are lost on
+ * purpose rather than silently winning.
  *
- * These are foundation tokens, not the production visual system. PS-DESIGN
- * (GAME-367) owns the Figma-authored workstation/HUD treatment; until that file
- * is linked, nothing here may be described as visually approved.
+ * Ownership: PS-DESIGN (GAME-367), superseding the PS-02 foundation tokens. See
+ * `docs/DESIGN_SYSTEM.md`.
  */
 
 :root {
   color-scheme: dark;
 
-  /* Surface + text */
+  /* color */
+  /* Deepest background: the page behind everything, and the letterbox around the survey viewport. */
   --ps-surface-0: #070a0e;
+  /* Panel background. The default surface for text-bearing content. */
   --ps-surface-1: #0d1218;
+  /* Raised panel or control background: the first step of elevation. */
   --ps-surface-2: #141b23;
+  /* Highest panel step, for a surface sitting over an already-raised one. There is no fourth step on purpose: depth beyond three reads as decoration. */
   --ps-surface-3: #1c252f;
+  /* Default divider and container outline. Decorative: it may be low contrast. */
   --ps-border: #2a3642;
-  --ps-border-strong: #3d4c5c;
-
+  /* Outline of an interactive or focusable container, where the boundary itself carries meaning. Lightened from the PS-02 foundation value #3d4c5c, which measured 2.14:1 against a panel and so failed the 3:1 non-text minimum it exists to meet. */
+  --ps-border-strong: #5a6d80;
+  /* Primary text and measured values. The highest-contrast text token. */
   --ps-text: #e8eef5;
+  /* Secondary text: labels, captions, units, and contextual notes that accompany primary text. */
   --ps-text-muted: #a3b1c0;
-  --ps-text-subtle: #7c8b9c;
-
-  /* Accents. Never the sole carrier of meaning. */
+  /* Lowest-emphasis text: inline metadata such as an observation id. Still meets the AA text minimum, because 'less important' is not a licence to be unreadable. */
+  --ps-text-subtle: #8b9cad;
+  /* Primary interactive accent: links, selected targets, active instrument. */
   --ps-accent: #6fb4ff;
+  /* Hover/emphasis variant of the accent. Never the only signal of a state change. */
   --ps-accent-strong: #9cccff;
+  /* Instrument readings and instrument-selection affordances. Separates 'the probe measured this' from 'the survey says this'. */
   --ps-instrument: #ffc46b;
+  /* Captured evidence: notebook entries and citation affordances. */
   --ps-evidence: #7ee0b8;
+  /* Contested, unreviewed, or reduced-capability notices. Always paired with text: this is amber, not red, because nothing here is the learner's fault (docs/UX_USER_FLOW.md §6). */
   --ps-caution: #ffd166;
 
-  /* Focus: high contrast, always visible, never removed for aesthetics. */
+  /* focus */
+  /* Focus indicator colour. Must meet the 3:1 non-text minimum against every surface it can appear on. */
   --ps-focus-ring: #ffd166;
+  /* Focus indicator thickness. Never reduced to fit a layout (docs/ACCESSIBILITY.md §5). */
   --ps-focus-width: 3px;
+  /* Gap between the component and its focus indicator, so the ring is legible over a filled control. */
   --ps-focus-offset: 2px;
 
-  /* Type scale */
-  --ps-font-body:
-    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --ps-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-
+  /* typography */
+  /* Body and UI text. System faces on purpose: no webfont means no font request, no FOUT, and no licence question (docs/ASSET_PROVENANCE.md §10). */
+  --ps-font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Measurement values, units, and observation ids. Tabular alignment is what makes a column of readings comparable at a glance. */
+  --ps-font-mono: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+  /* Metadata only: ids, timestamps, source tags. Never a measured value or a required instruction. */
   --ps-text-xs: 0.78rem;
+  /* Secondary labels, table headers, control text. */
   --ps-text-sm: 0.875rem;
+  /* Body copy and every learner-facing instruction. The floor for required reading. */
   --ps-text-base: 1rem;
+  /* Lead paragraph and brief text, where the learner reads a question for the first time. */
   --ps-text-lg: 1.15rem;
+  /* Section headings: a panel's own heading, one step below the page title, so a learner can find a section without reading its body. */
   --ps-text-xl: 1.4rem;
+  /* The single page heading and the mission title. Beyond this, hierarchy is carried by weight and spacing instead of size. */
   --ps-text-2xl: 1.85rem;
-
+  /* Headings and single-line values, where tight leading keeps a dense panel readable. */
   --ps-leading-tight: 1.25;
+  /* Body text, deliberately loose. Dense scientific prose needs the extra leading more than a marketing page does. */
   --ps-leading-normal: 1.55;
+  /* Maximum line length for prose. Long lines are the commonest legibility failure in a data-dense tool, and this bounds them. */
+  --ps-measure: 68ch;
 
-  /* Spacing */
+  /* spacing */
+  /* Hairline separation: gap between a value and its unit. */
   --ps-space-1: 0.25rem;
+  /* Tight grouping: label to input, list row padding. */
   --ps-space-2: 0.5rem;
+  /* Default gap between related controls. */
   --ps-space-3: 0.75rem;
+  /* Panel padding and the standard gap between elements. */
   --ps-space-4: 1rem;
+  /* Separation between groups inside one panel. */
   --ps-space-5: 1.5rem;
+  /* Separation between panels, so a group of related controls reads as one object. */
   --ps-space-6: 2rem;
+  /* Separation between page-level sections. */
   --ps-space-7: 3rem;
+  /* Vertical rhythm at the top level, and the reserved area around a focused task. The largest step on purpose: past this, emptiness stops reading as grouping. */
+  --ps-space-8: 4rem;
 
+  /* radius */
+  /* Inputs, chips, and inline controls. */
   --ps-radius-sm: 4px;
+  /* Panels, cards, and the notebook's own container: the default rounded corner. */
   --ps-radius-md: 8px;
+  /* The survey viewport frame and full-surface containers. */
   --ps-radius-lg: 14px;
 
+  /* elevation */
+  /* Resting elevation for a raised control. */
   --ps-shadow-1: 0 1px 2px rgb(0 0 0 / 45%);
+  /* Overlay elevation: a panel or popover floating over content. Depth never carries meaning on its own — see --ps-z-*. */
   --ps-shadow-2: 0 6px 18px rgb(0 0 0 / 45%);
 
-  /* Motion. Reduced motion sets these to near-zero; layout never depends on them. */
+  /* motion */
+  /* Feedback on a direct manipulation: press, toggle, row focus. */
   --ps-motion-fast: 120ms;
+  /* Panel and disclosure transitions: something appears or changes in place. */
   --ps-motion-base: 220ms;
+  /* Larger spatial change: a panel swapping, the notebook opening. */
   --ps-motion-slow: 420ms;
+  /* Camera and viewport transitions. The longest step, and the first thing reduced motion removes, because it is the only motion that moves the whole frame. */
+  --ps-motion-camera: 640ms;
+  /* The single easing curve. One curve keeps unrelated transitions feeling related; a second curve has to earn its place. */
   --ps-ease: cubic-bezier(0.2, 0, 0.2, 1);
 
-  /* Non-color state encodings. Use these instead of relying on hue. */
-  --ps-marker-done: "\2713"; /* check */
-  --ps-marker-active: "\25B8"; /* right-pointing triangle */
-  --ps-marker-pending: "\00B7"; /* middle dot */
-  --ps-marker-blocked: "\2715"; /* cross */
+  /* layering */
+  /* Document flow: everything in the reading order. */
+  --ps-z-content: 0;
+  /* The renderer canvas. Kept below every accessible surface so the 3D view can never cover required content. */
+  --ps-z-viewport: 10;
+  /* Instrument and camera controls that float over the viewport. */
+  --ps-z-toolbar: 20;
+  /* Loading, error, and fallback overlays. Above the viewport, below a modal. */
+  --ps-z-overlay: 30;
+  /* Dialogs that take focus, such as a confirmation the learner must answer. */
+  --ps-z-modal: 40;
+
+  /* sizing */
+  /* Minimum hit area for any interactive control on a touch-capable viewport (docs/ACCESSIBILITY.md A-3). Enforced by the design-system check against the surface inventory. */
+  --ps-touch-min: 44px;
+  /* Default control height on pointer-capable viewports. Below --ps-touch-min on purpose: the hit area is grown to the minimum by padding rather than by making a dense toolbar tiring. */
+  --ps-control-height: 40px;
+
+  /* encoding */
+  /* Non-colour marker for a completed step. Required distinctions are carried by a marker plus a text label, never by hue alone (docs/ACCESSIBILITY.md A-9). */
+  --ps-marker-done: "\2713";
+  /* Non-colour marker for the current step. */
+  --ps-marker-active: "\25B8";
+  /* Non-colour marker for a step not yet reached. A dot rather than a blank, so a pending step reads as deliberately not-yet rather than as a rendering failure. */
+  --ps-marker-pending: "\00B7";
+  /* Non-colour marker for a step that cannot proceed, paired with the reason in text. */
+  --ps-marker-blocked: "\2715";
 }
 
+/**
+ * Reduced motion: every motion token is neutralised, not removed.
+ *
+ * A 1ms transition still fires the transition events a renderer may rely on
+ * and still avoids a flash of un-styled final state, while removing every
+ * perceptible movement. The camera token is included because a rule the
+ * renderer can opt out of is not a rule (docs/ACCESSIBILITY.md A-8).
+ */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --ps-motion-fast: 1ms;
     --ps-motion-base: 1ms;
     --ps-motion-slow: 1ms;
+    --ps-motion-camera: 1ms;
   }
 }
+
+/**
+ * Declared contrast requirements for these values live in `src/design/tokens.ts`
+ * (`CONTRAST_REQUIREMENTS`), and `npm run check:design` computes the real WCAG
+ * ratios for each pair rather than trusting the palette.
+ */

@@ -25,7 +25,11 @@ The repository contains:
   impossible or uncited values (**PS-03**, [`SOURCE_REGISTER.md`](SOURCE_REGISTER.md));
 - the canonical v1 content: 5 worlds, 11 values each cited to a named register
   record, 4 missions with completion paths and claim targets, and 7 licensed
-  simplifications with learner text (**PS-04**, register version `ps-04.0.0`).
+  simplifications with learner text (**PS-04**, register version `ps-04.0.0`);
+- the design source of truth: 57 tokens that each state their purpose, a generated
+  stylesheet with a drift check, 13 measured contrast pairs, and a surface
+  inventory covering every step of the frozen loop (**PS-DESIGN**,
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md)).
 
 **There is still no playable build.** No mission can be loaded: wiring the authored
 content into the workstation is PS-05 onward. The shell reports the distinction
@@ -46,7 +50,7 @@ is the material prepared for that review, and
 | GAME-364 | PS-02 — executable foundation | **complete** | verified gate, real-browser renderer smoke, CI |
 | GAME-365 | PS-HOST — games-site host contract | **complete** | preview and production pointers distinct; production unavailable |
 | GAME-366 | PS-03 — data/source registry | **complete** | source-of-truth layer |
-| GAME-367 | PS-DESIGN — Figma preproduction | ready | no open blocker; see constraint 3 |
+| GAME-367 | PS-DESIGN — design system + preproduction | **complete** (in-repo equivalent; no Figma file — see constraint 3) | tokens, surfaces, breakpoints, motion, accessibility mapping |
 | GAME-368 | PS-04 — canonical bodies/missions | **implemented; science review outstanding** | content authored and sourced; see constraint 1 |
 | GAME-369 | PS-05 — Babylon renderer foundation | blocked | by PS-03 + PS-DESIGN |
 | GAME-370 | PS-06 — instruments/evidence capture | blocked | by PS-04 + PS-05 |
@@ -78,9 +82,15 @@ is the material prepared for that review, and
    lockfile (`DECISIONS.md` D-20). A dependency change is a separately reviewed
    change that re-runs the whole gate, including the real-browser suites.
 
-3. **Figma file.** No production Figma file/version is linked yet. Until
-   PS-DESIGN records one, repository wireframes are illustrative and cannot claim
-   visual approval.
+3. **No design file, and no human visual review of the design direction.** PS-DESIGN
+   delivered the handoff in the repository instead of as a Figma file, because that
+   form is machine-checkable and versioned with the code; `DESIGN_SYSTEM.md` §1
+   states plainly what that trade gives up — fast visual exploration, and a canvas a
+   human can look at and approve. Nothing about the current visual direction has
+   been reviewed or approved by a person. Human visual sign-off and target-age
+   legibility evidence are PS-09's and PS-14's, and
+   [`ACCEPTANCE_EVIDENCE_MATRIX.md`](ACCEPTANCE_EVIDENCE_MATRIX.md) records the
+   absent artefact.
 
 4. **games-site positional parameter.** `isApprovedRelease` gained an eighth
    positional argument for the preview pointer in PS-HOST. It works and is tested,
@@ -110,7 +120,7 @@ is the material prepared for that review, and
 ## Recorded decisions
 
 PS-01 decisions are closed (`DECISIONS.md` D-01…D-18); PS-02 and PS-03 added
-D-19…D-27; PS-04 added D-28…D-31. The outstanding-decision audit remains D-18: **no
+D-19…D-27; PS-04 added D-28…D-31; PS-DESIGN added D-32 and D-33. The outstanding-decision audit remains D-18: **no
 unresolved owner decision can materially change the runtime architecture or the v1
 learning loop.**
 

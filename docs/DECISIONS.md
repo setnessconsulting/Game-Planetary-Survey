@@ -481,3 +481,48 @@ fails fast on the 15s assertion budget, and "the suite is red" now means somethi
 The duration of each test is no longer itself an assertion, which is the honest
 position: this project does not measure performance in CI, and PS-12 owns
 performance evidence.
+
+## D-32 — The design source of truth is typed and generated, not a canvas
+
+**Decision:** visual constants are declared in `src/design/tokens.ts`, and
+`src/styles/tokens.css` is generated from them and byte-compared in the gate.
+Surfaces, their states, and the obligation each one owes are declared in
+`src/design/surfaces.ts` as required fields. GAME-367's criteria allow a "Figma or
+equivalent" handoff; this is the equivalent, and no Figma file is linked.
+
+**Rationale:** a canvas cannot fail a build. The rules this project actually depends
+on — a required distinction carries a non-colour encoding, a surface that shows
+visual data names its table equivalent, a surface that uses the 3D view names its
+semantic alternative, every interactive control meets the touch minimum, every
+motion duration is neutralised under reduced motion — are all enforceable as typed
+fields and unenforceable as annotations. A Figma library is also a second place a
+colour can be changed, and the drift between a library and a stylesheet is invisible
+until someone ships it.
+
+**Consequence:** the trade is recorded rather than hidden (`DESIGN_SYSTEM.md` §1):
+fast visual exploration and a human artefact to approve are *not* provided, and
+human visual sign-off remains outstanding under PS-09/PS-14. If a design file is
+later introduced, it does not override the token source without a change to it.
+
+## D-33 — Contrast is a measured property of the pair in use, not of the palette
+
+**Decision:** `CONTRAST_REQUIREMENTS` declares the foreground/background pairs that
+ship; `npm run check:design` computes the real WCAG 2.1 ratio for each and fails
+below the declared minimum. Text tokens a learner must read — including units and
+provenance tags — are held to 4.5:1 rather than 3:1. Raising a declared minimum to
+make a failing pair pass is forbidden.
+
+**Rationale:** the first run of the check failed `--ps-border-strong`, inherited
+from the PS-02 foundation palette, at **2.14:1** against a panel: below the 3:1
+non-text minimum that the token exists to meet, and invisible until the ratio was
+computed. A palette can pass a linter and fail a learner, so the requirement is
+stated per pair in use, because what matters is that this text sits on that surface.
+Treating units and source tags as optional reading was the same class of mistake: in
+a product whose premise is that a number travels with its source, they are not
+decoration.
+
+**Consequence:** `--ps-border-strong` is now `#5a6d80` (3.52:1 on a panel, 3.25:1 on
+a raised control) and `--ps-text-subtle` was lightened for the text minimum; both
+changes are recorded in the tokens' own purpose notes so a later reader does not
+restore the darker values. Every future palette change either keeps its pairs above
+their minimum or is a redesign.

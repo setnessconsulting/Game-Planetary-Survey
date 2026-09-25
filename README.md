@@ -26,7 +26,7 @@ measurement evidence.
 | Executable foundation | GAME-364 / PS-02 | complete |
 | games-site host contract | GAME-365 / PS-HOST | complete |
 | Science registry | GAME-366 / PS-03 | complete |
-| Design preproduction | GAME-367 / PS-DESIGN | ready |
+| Design preproduction | GAME-367 / PS-DESIGN | complete — in-repo design system; no Figma file |
 | Canonical bodies/missions | GAME-368 / PS-04 | implemented — content authored and sourced; **science review outstanding** |
 
 Live status is tracked in Jira and summarized in [`docs/STATUS.md`](docs/STATUS.md).
@@ -127,6 +127,10 @@ architecture check.
 
 Established by PS-02. Node 24 (`nvm use`), then `npm ci`.
 
+The design system is generated: edit `src/design/tokens.ts`, then run
+`npm run build:tokens`. `npm run verify` fails if the committed stylesheet and the
+token source disagree, and fails on any contrast pair below its declared minimum.
+
 | Command | What it does |
 |---|---|
 | `npm run dev` | Vite dev server on `127.0.0.1:5273` |
@@ -173,6 +177,7 @@ work.
 | [`docs/SCIENCE_MODEL.md`](docs/SCIENCE_MODEL.md) | NGSS matrix, learning objectives, source authority, simplification policy |
 | [`docs/SOURCE_REGISTER.md`](docs/SOURCE_REGISTER.md) | source register schema and policy, canonical units, derived values, distortion metadata, determinism |
 | [`docs/SCIENCE_REVIEW_PACKET.md`](docs/SCIENCE_REVIEW_PACKET.md) | the shipped values, their citations, and the decisions a human science reviewer must make |
+| [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | design tokens, surfaces and states, breakpoints, motion hierarchy, accessibility mapping, art direction |
 | [`docs/TECHNICAL_DESIGN.md`](docs/TECHNICAL_DESIGN.md) | architecture, layer boundaries, data flow, state ownership, hosting boundary |
 | [`docs/TECHNOLOGY_DECISIONS.md`](docs/TECHNOLOGY_DECISIONS.md) | technology ADR, version policy, rejected technologies |
 | [`docs/RENDERING_QUALITY_STRATEGY.md`](docs/RENDERING_QUALITY_STRATEGY.md) | renderer baseline, WebGPU policy, quality tiers, atmosphere policy, asset loading |
