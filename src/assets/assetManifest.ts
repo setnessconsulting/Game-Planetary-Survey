@@ -8,10 +8,9 @@
  *  - loading is progressive: the first mission must not require the whole
  *    production asset set (docs/PERFORMANCE_AND_DEVICE_BUDGETS.md §3.3).
  *
- * PS-02 ships NO 3D assets and NO mission content. The manifest is empty on
- * purpose: this story establishes the structure and the guarantees, and PS-05 /
- * PS-10 populate it. An empty manifest with a real shape is better than invented
- * content, which GAME-364 explicitly forbids.
+ * PS-05 populates renderer placeholders. PS-10 replaces them with production
+ * art. Generated placeholders carry `generated.*` provenance ids (D-34); the
+ * shipping gate rejects `provenanceId: null`.
  */
 
 import type { QualityProfileId } from "./qualityProfiles";
@@ -30,8 +29,12 @@ export interface AssetEntry {
   readonly lodVariants: readonly string[];
   /** Tier below which this asset may be substituted by a coarser variant. */
   readonly minimumQuality: QualityProfileId | null;
-  /** Provenance manifest id. `null` is allowed only for generated placeholders. */
-  readonly provenanceId: string | null;
+  /**
+   * Provenance manifest id. Required for every shipping asset. Generated
+   * placeholders use a `generated.*` id (D-34); external art needs a full
+   * provenance record before release.
+   */
+  readonly provenanceId: string;
 }
 
 export interface AssetManifest {
@@ -43,14 +46,41 @@ export interface AssetManifest {
 /**
  * The current manifest.
  *
- * `generatedFrom` records why it is empty, so a reader cannot mistake this for
- * a missing file.
+ * Byte sizes come from `node scripts/generate-placeholder-assets.mjs`.
  */
 export const ASSET_MANIFEST: AssetManifest = {
-  version: "0.1.0",
+  version: "0.5.0",
   generatedFrom:
-    "PS-02 bootstrap: no shipping 3D or audio assets exist yet. PS-05 populates renderer assets; PS-10 populates production art, textures, and audio.",
-  assets: [],
+    "PS-05 placeholder pipeline: generated GLB/KTX2 bodies with generated.* provenance. PS-10 owns production art.",
+  assets: [
+    {
+      logicalId: "body.placeholder.mesh",
+      kind: "mesh",
+      shippingPath: "assets/bodies/placeholder-body.glb",
+      bytes: 19132,
+      lodVariants: ["assets/bodies/placeholder-body-lod1.glb", "assets/bodies/placeholder-body.glb"],
+      minimumQuality: null,
+      provenanceId: "generated.ps05-placeholder-body",
+    },
+    {
+      logicalId: "body.placeholder.mesh.lod1",
+      kind: "mesh",
+      shippingPath: "assets/bodies/placeholder-body-lod1.glb",
+      bytes: 5816,
+      lodVariants: [],
+      minimumQuality: "reduced",
+      provenanceId: "generated.ps05-placeholder-body-lod1",
+    },
+    {
+      logicalId: "body.placeholder.albedo",
+      kind: "texture",
+      shippingPath: "assets/bodies/placeholder-albedo.ktx2",
+      bytes: 260,
+      lodVariants: [],
+      minimumQuality: null,
+      provenanceId: "generated.ps05-placeholder-albedo",
+    },
+  ],
 };
 
 export function assetsOfKind(kind: AssetKind): readonly AssetEntry[] {
@@ -59,6 +89,24 @@ export function assetsOfKind(kind: AssetKind): readonly AssetEntry[] {
 
 export function findAsset(logicalId: string): AssetEntry | undefined {
   return ASSET_MANIFEST.assets.find((asset) => asset.logicalId === logicalId);
+}
+
+/**
+ * Choose the mesh shipping path for a quality tier.
+ *
+ * Reduced prefers the coarse LOD when registered; higher tiers use the fine mesh.
+ */
+export function meshPathForQuality(
+  mesh: AssetEntry,
+  quality: QualityProfileId,
+): string {
+  if (quality === "reduced" && mesh.lodVariants.length > 0) {
+    return mesh.lodVariants[0] ?? mesh.shippingPath;
+  }
+  if (mesh.lodVariants.length > 1) {
+    return mesh.lodVariants[mesh.lodVariants.length - 1] ?? mesh.shippingPath;
+  }
+  return mesh.shippingPath;
 }
 
 /**
@@ -71,6 +119,12 @@ export function findAsset(logicalId: string): AssetEntry | undefined {
 export function resolveAssetUrl(asset: AssetEntry, base: string): string {
   const normalizedBase = base.endsWith("/") ? base : `${base}/`;
   const path = asset.shippingPath.replace(/^\/+/, "");
+  return `${normalizedBase}${path}`;
+}
+
+export function resolveShippingPathUrl(shippingPath: string, base: string): string {
+  const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+  const path = shippingPath.replace(/^\/+/, "");
   return `${normalizedBase}${path}`;
 }
 

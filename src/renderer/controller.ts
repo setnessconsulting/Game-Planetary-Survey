@@ -19,10 +19,10 @@ import {
   type QualityProfileId,
 } from "@/assets/qualityProfiles";
 import type { CapabilityReport, RendererBackend } from "@/platform/capabilities";
-import type { RenderSnapshot } from "@/domain/renderSnapshot";
+import type { CameraMode, RenderSnapshot } from "@/domain/renderSnapshot";
 
 import { createEngineFor, RendererEngineError } from "./engine";
-import { applyQuality, buildScene, type SceneHandles } from "./scene";
+import { buildScene, type SceneHandles } from "./scene";
 
 /**
  * Renderer-originated presentation facts.
@@ -39,6 +39,8 @@ import { applyQuality, buildScene, type SceneHandles } from "./scene";
  */
 export type RendererEvent =
   | { readonly kind: "ready"; readonly backend: RendererBackend }
+  | { readonly kind: "sceneReady"; readonly backend: RendererBackend }
+  | { readonly kind: "targetApproached"; readonly cameraMode: CameraMode }
   | { readonly kind: "degraded"; readonly reason: string }
   | { readonly kind: "failed"; readonly reason: string; readonly backend: RendererBackend };
 
@@ -47,6 +49,8 @@ export interface RendererController {
   /** Push presentation state. Cheap, synchronous, and never triggers React work. */
   applySnapshot(snapshot: RenderSnapshot): void;
   setQuality(id: QualityProfileId, reducedMotion: boolean): void;
+  /** Accessible camera reset / orientation recovery. */
+  resetCamera(): void;
   /** Frames rendered so far. Diagnostics only. */
   frameCount(): number;
   /** Release every GPU and DOM resource this controller owns. */
@@ -83,36 +87,30 @@ export async function createRendererController(
 
   let engine;
   let backend: RendererBackend;
-  // Owned here and passed in, so the record of what was attempted survives a throw
-  // (see CreateEngineOptions.notes).
   const notes: string[] = [];
   try {
     const result = await createEngineFor({ canvas, backend: capabilities.backend, notes });
     engine = result.engine;
     backend = result.backend;
   } catch (error) {
-    // `RendererEngineError` knows which backend it tried and failed on; anything
-    // else is reported against the requested backend rather than invented.
     const failedBackend: RendererBackend =
       error instanceof RendererEngineError ? error.backend : capabilities.backend;
     const detail = error instanceof Error ? error.message : String(error);
-    // A learner who reached a total failure still deserves the whole story: the
-    // attempt history is why the message names more than one backend.
     const reason = [detail, ...notes].join(" ");
     onEvent?.({ kind: "failed", reason, backend: failedBackend });
     throw error;
   }
 
   const scene = new Scene(engine);
-  // A calm, dark survey backdrop. Not an image of anything; it must not read as
-  // data (docs/RENDERING_QUALITY_STRATEGY.md §10).
-  scene.clearColor.set(0.031, 0.04, 0.055, 1);
-
   const handles: SceneHandles = buildScene(scene, qualityProfile(options.quality));
 
   let frames = 0;
   let disposed = false;
   let lastSnapshot: RenderSnapshot | null = null;
+  let currentQuality: QualityProfileId = options.quality;
+  let currentReducedMotion = options.reducedMotion;
+  let lastCameraMode: CameraMode | null = null;
+  let sceneReadyEmitted = false;
 
   const writeDiagnostics = (force: boolean): void => {
     if (!diagnostics) return;
@@ -120,10 +118,19 @@ export async function createRendererController(
     diagnostics.setAttribute("data-renderer-backend", backend);
     diagnostics.setAttribute("data-renderer-frames", String(frames));
     diagnostics.setAttribute("data-renderer-quality", currentQuality);
-    diagnostics.setAttribute("data-renderer-reference", lastSnapshot?.presentation.mode ?? "reference");
+    diagnostics.setAttribute(
+      "data-renderer-reference",
+      lastSnapshot?.presentation.mode ?? "reference",
+    );
+    diagnostics.setAttribute(
+      "data-renderer-camera",
+      lastSnapshot?.presentation.cameraMode ?? "orbit",
+    );
+    diagnostics.setAttribute(
+      "data-renderer-scale",
+      lastSnapshot?.presentation.scaleMode ?? "bodyRelative",
+    );
   };
-
-  let currentQuality: QualityProfileId = options.quality;
 
   engine.runRenderLoop(() => {
     if (disposed) return;
@@ -148,28 +155,48 @@ export async function createRendererController(
     onEvent?.({ kind: "degraded", reason: note });
   }
 
+  // Progressive first-mission body load.
+  void handles.ensureBodyLoaded(currentQuality).then((loadNotes) => {
+    if (disposed) return;
+    for (const note of loadNotes) {
+      onEvent?.({ kind: "degraded", reason: note });
+    }
+    if (!sceneReadyEmitted) {
+      sceneReadyEmitted = true;
+      onEvent?.({ kind: "sceneReady", backend });
+    }
+    if (lastSnapshot) {
+      handles.applySnapshot(lastSnapshot, currentReducedMotion);
+      writeDiagnostics(true);
+    }
+  });
+
   return {
     backend,
     applySnapshot: (snapshot: RenderSnapshot): void => {
       if (disposed) return;
       lastSnapshot = snapshot;
-      // PS-02 applies only presentation-safe facts. PS-05 replaces this with the
-      // authored planetary pipeline; the rule that no measurement passes through
-      // here does not change.
-      handles.referenceBody.setEnabled(snapshot.presentation.mode === "reference");
+      handles.applySnapshot(snapshot, currentReducedMotion);
+      if (lastCameraMode !== null && lastCameraMode !== snapshot.presentation.cameraMode) {
+        // Approach/orbit/inspection transitions are presentation facts the shell may
+        // announce; they never carry a measurement.
+        if (snapshot.presentation.cameraMode === "inspection") {
+          onEvent?.({ kind: "targetApproached", cameraMode: snapshot.presentation.cameraMode });
+        }
+      }
+      lastCameraMode = snapshot.presentation.cameraMode;
       writeDiagnostics(true);
     },
     setQuality: (id: QualityProfileId, reducedMotion: boolean): void => {
       if (disposed) return;
       currentQuality = id;
-      const profile = qualityProfile(id);
-      applyQuality(
-        reducedMotion
-          ? { ...profile, animationDensity: "minimal", particleDensity: 0 }
-          : profile,
-        handles,
-        scene,
-      );
+      currentReducedMotion = reducedMotion;
+      handles.setQuality(qualityProfile(id), reducedMotion);
+      writeDiagnostics(true);
+    },
+    resetCamera: (): void => {
+      if (disposed) return;
+      handles.resetCamera(currentReducedMotion);
       writeDiagnostics(true);
     },
     frameCount: (): number => frames,
@@ -177,6 +204,7 @@ export async function createRendererController(
       if (disposed) return;
       disposed = true;
       engine.stopRenderLoop();
+      handles.disposeLoadedBody();
       scene.dispose();
       engine.dispose();
       if (diagnostics) {
@@ -184,6 +212,8 @@ export async function createRendererController(
         diagnostics.removeAttribute("data-renderer-frames");
         diagnostics.removeAttribute("data-renderer-quality");
         diagnostics.removeAttribute("data-renderer-reference");
+        diagnostics.removeAttribute("data-renderer-camera");
+        diagnostics.removeAttribute("data-renderer-scale");
       }
     },
   };

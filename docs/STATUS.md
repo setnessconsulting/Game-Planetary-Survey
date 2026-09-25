@@ -8,7 +8,7 @@ Canonical repository: `setnessconsulting/Game-Planetary-Survey` (`main`)
 
 ## Current phase
 
-**Foundation, source-of-truth layer, and canonical content complete. No playable build yet.**
+**Current phase: renderer foundation (PS-05) complete on canonical main.**
 
 The repository contains:
 
@@ -29,12 +29,14 @@ The repository contains:
 - the design source of truth: 57 tokens that each state their purpose, a generated
   stylesheet with a drift check, 13 measured contrast pairs, and a surface
   inventory covering every step of the frozen loop (**PS-DESIGN**,
-  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md)).
+  [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md));
+- the Babylon planetary renderer foundation: GLB/KTX2 asset pipeline, camera and
+  scale modes, typed render contract, and authored-mission load in the shell
+  (**PS-05** / GAME-369).
 
-**There is still no playable build.** No mission can be loaded: wiring the authored
-content into the workstation is PS-05 onward. The shell reports the distinction
-itself — content is *authored and sourced*, and *not yet science-reviewed* — rather
-than collapsing the two into one "ready" state.
+Authored missions load into the workstation. Instruments, claim completion, and
+production art remain later stories. Independent science review remains
+outstanding.
 
 **No independent science review has occurred.** Every value is transcribed from an
 agency source and machine-checked for physical plausibility; none has been checked
@@ -52,8 +54,8 @@ is the material prepared for that review, and
 | GAME-366 | PS-03 — data/source registry | **complete** | source-of-truth layer |
 | GAME-367 | PS-DESIGN — design system + preproduction | **complete** (in-repo equivalent; no Figma file — see constraint 3) | tokens, surfaces, breakpoints, motion, accessibility mapping |
 | GAME-368 | PS-04 — canonical bodies/missions | **implemented; science review outstanding** | content authored and sourced; see constraint 1 |
-| GAME-369 | PS-05 — Babylon renderer foundation | blocked | by PS-03 + PS-DESIGN |
-| GAME-370 | PS-06 — instruments/evidence capture | blocked | by PS-04 + PS-05 |
+| GAME-369 | PS-05 — Babylon renderer foundation | **complete** | GAME-369; real-browser renderer evidence; science/visual review not claimed |
+| GAME-370 | PS-06 — instruments/evidence capture | blocked | by PS-05 Done; still waits on instruments |
 | GAME-371 | PS-07 — notebook/comparison/a11y equivalents | blocked | by PS-06 |
 | GAME-372 | PS-08 — mission engine/scoring/debrief | blocked | by PS-04 + PS-07 |
 | GAME-373 | PS-09 — guided-mission vertical slice | blocked | hard gate before content expansion |

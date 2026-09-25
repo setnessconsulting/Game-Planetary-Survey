@@ -20,17 +20,31 @@ export { SOURCE_REGISTER, SOURCE_REGISTER_VERSION, SOURCE_REGISTER_RETRIEVED_ON 
 /**
  * Declared scale/distortion metadata for rendered representations.
  *
- * Still empty, and that is a statement rather than an omission: PS-05 (GAME-369)
- * gives the renderer representations to declare, and until then there is no view
- * whose distortion could be described. The contract a declaration must satisfy —
- * an explicit ratio, a licensed source basis, a model boundary, and the exact
- * learner-facing text — is enforced by `validatePresentationDeclarations`, and
- * `validatePresentationsLicensed` additionally requires that the SIM id it cites
- * exists in the simplification register with scope `presentation`.
- *
- * SIM-7 in `./simplifications.ts` already states the compression rule this
- * declaration will implement. The two are deliberately separate: the
- * simplification says *why* compressing is acceptable and *what the learner is
- * told*; the declaration will say *which view* does it and by *how much*.
+ * PS-05 (GAME-369) declares the system-comparison view licensed by SIM-7. The
+ * simplification says why compressing is acceptable and what the learner is told;
+ * this declaration says which view does it and by how much. Both are required:
+ * `validatePresentationsLicensed` refuses a declaration whose SIM id is missing
+ * or is not scope `presentation`.
  */
-export const PRESENTATION_DECLARATIONS: readonly PresentationScaleDeclaration[] = [];
+export const PRESENTATION_DECLARATIONS: readonly PresentationScaleDeclaration[] = [
+  {
+    id: "SIM-7",
+    representationId: "system-comparison",
+    kind: "nonLinearCompression",
+    // Drawn:literal factor for comparative placement — deliberately tiny so the
+    // renderer treats distances as choreography, never as a measurable length.
+    ratio: 0.0001,
+    sourceBasisIds: ["jpl.mean-radius.moon", "jpl.mean-radius.venus"],
+    rationale:
+      "At literal relative scale across surveyed distances, the smallest world in this survey " +
+      "would be a single pixel. A labelled comparison teaches the relationship better than an " +
+      "unreadable literal view.",
+    modelBoundary:
+      "The drawing is compressed and is never a source of a value. Relative size and relative " +
+      "separation are not to scale with each other, and no measurement is taken from the " +
+      "picture. The numbers in the notebook are the measurements.",
+    learnerText:
+      "This comparison view is compressed so that small worlds stay visible. It is not drawn to literal scale — the numbers in your notebook are the measurements.",
+    reviewStatus: "unreviewed",
+  },
+];

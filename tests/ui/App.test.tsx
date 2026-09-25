@@ -18,7 +18,7 @@ describe("App shell", () => {
     render(<App />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Planetary Survey");
     expect(screen.getByTestId("foundation-note").textContent).toContain(
-      "Independent science review of that content is still outstanding",
+      "Independent science review is still outstanding",
     );
   });
 
@@ -54,16 +54,22 @@ describe("App shell", () => {
 
   it("reports authored-and-sourced separately from science-reviewed", () => {
     render(<App />);
-    // PS-04 authored the content, so "empty" is no longer the truth. What matters
-    // is that the shell does not upgrade "sourced" into "reviewed": every value is
-    // cited, and none of it has passed independent science review yet.
     const status = screen.getByTestId("content-status").textContent ?? "";
     expect(status).toContain("every value cited in the source register");
     expect(status).toContain("Independent science review is outstanding");
     expect(status).not.toContain("Independent science review is complete");
     expect(screen.getByTestId("briefing-empty-state").textContent).toContain(
-      "an unsourced number is worse than no number",
+      "independent science review is still outstanding",
     );
+  });
+
+  it("loads an authored mission and exposes target selection", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("load-mission-survey-001-sizes"));
+    expect(screen.getByTestId("briefing-title").textContent).toContain("Order the rocky worlds");
+    expect(screen.getByTestId("target-selection")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("select-target-mars"));
+    expect(screen.getByTestId("select-target-mars").getAttribute("aria-pressed")).toBe("true");
   });
 
   it("exposes quality, motion, and audio preferences", () => {
@@ -128,11 +134,11 @@ describe("honest renderer failure", () => {
 describe("mission controls", () => {
   it("advances the shell through the briefing and announces the outcome", () => {
     render(<App />);
-    const openBriefing = screen.getByRole("button", { name: /open the foundation briefing/i });
-    fireEvent.click(openBriefing);
+    const openMission = screen.getByTestId("load-mission-survey-001-sizes");
+    fireEvent.click(openMission);
 
-    expect(openBriefing.hasAttribute("disabled")).toBe(true);
-    expect(screen.getByTestId("briefing-panel").textContent).toContain("foundation-briefing");
+    expect(openMission.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("briefing-panel").textContent).toContain("survey-001-sizes");
     expect(screen.getAllByRole("status")[0]?.textContent).toContain("Mission loaded");
   });
 

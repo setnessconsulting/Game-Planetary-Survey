@@ -29,8 +29,8 @@ test.describe("automated accessibility", () => {
 
   test("@a11y has no detectable violations after the mission advances", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: /open the foundation briefing/i }).click();
-    await expect(page.getByTestId("briefing-panel")).toContainText("foundation-briefing");
+    await page.getByTestId("load-mission-survey-001-sizes").click();
+    await expect(page.getByTestId("briefing-panel")).toContainText("survey-001-sizes");
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -91,10 +91,10 @@ test.describe("automated accessibility", () => {
     expect(overflow, "200% text scaling must not create horizontal scrolling").toBeLessThanOrEqual(1);
 
     // A required control must remain reachable and clickable at 200%.
-    const briefingButton = page.getByRole("button", { name: /open the foundation briefing/i });
-    await expect(briefingButton).toBeVisible();
-    await briefingButton.click();
-    await expect(briefingButton).toBeDisabled();
+    const missionButton = page.getByTestId("load-mission-survey-001-sizes");
+    await expect(missionButton).toBeVisible();
+    await missionButton.click();
+    await expect(missionButton).toBeDisabled();
   });
 
   test("@a11y honours reduced motion and keeps every route available", async ({ page }) => {

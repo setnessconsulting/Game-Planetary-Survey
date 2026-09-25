@@ -526,3 +526,22 @@ a raised control) and `--ps-text-subtle` was lightened for the text minimum; bot
 changes are recorded in the tokens' own purpose notes so a later reader does not
 restore the darker values. Every future palette change either keeps its pairs above
 their minimum or is a redesign.
+
+## D-34 — Generated placeholder assets carry `generated.*` provenance ids
+
+**Decision:** Shipping assets that are original generated placeholders (PS-05
+foundation GLB/KTX2) must carry an explicit provenance id of the form
+`generated.<slug>`. `provenanceId: null` remains forbidden by
+`npm run check:assets`.
+
+**Rationale:** `src/assets/assetManifest.ts` previously commented that `null` was
+allowed for generated placeholders, while `scripts/check-asset-pipeline.mjs` and
+`docs/ASSET_PROVENANCE.md` required a provenance record for every shipping asset.
+Leaving `null` would either fail the gate or silently weaken provenance. A
+`generated.*` id documents creation method without inventing agency rights, and
+PS-10 replaces these placeholders with production art under full provenance
+records.
+
+**Consequence:** PS-05 placeholders use `generated.ps05-placeholder-*` ids. The
+manifest comment matches the gate. External or agency-derived art still needs a
+complete provenance record before release.

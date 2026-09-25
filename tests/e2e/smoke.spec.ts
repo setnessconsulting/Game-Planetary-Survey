@@ -147,6 +147,18 @@ test.describe("planetary survey shell", () => {
       await page.waitForTimeout(1200);
       const second = Number(await diagnostics.getAttribute("data-renderer-frames"));
       expect(second).toBeGreaterThan(first);
+
+      // Load a mission and confirm camera/scale diagnostics update.
+      await page.getByTestId("load-mission-survey-001-sizes").click();
+      await expect(page.getByTestId("renderer-viewport")).toHaveAttribute(
+        "data-scale-mode",
+        "comparativeNonLiteral",
+      );
+      await expect(page.getByTestId("diag-camera")).toHaveText("systemComparison");
+      await expect(diagnostics).toHaveAttribute("data-renderer-camera", "systemComparison");
+      await page.getByTestId("select-target-mars").click();
+      await expect(page.getByTestId("diag-scale")).toHaveText("bodyRelative");
+      await expect(page.getByTestId("reset-camera")).toBeVisible();
     } else {
       // This environment has no WebGL2, so the contract under test is the honest
       // degradation one. Asserting it here keeps the branch meaningful instead of
@@ -298,10 +310,10 @@ test.describe("planetary survey shell", () => {
     await expect(page.getByTestId("loop-checklist").locator("li")).toHaveCount(11);
 
     // And the mission loop must still function with no renderer at all.
-    const briefingButton = page.getByRole("button", { name: /open the foundation briefing/i });
-    await briefingButton.click();
-    await expect(briefingButton).toBeDisabled();
-    await expect(page.getByTestId("briefing-panel")).toContainText("foundation-briefing");
+    const missionButton = page.getByTestId("load-mission-survey-001-sizes");
+    await missionButton.click();
+    await expect(missionButton).toBeDisabled();
+    await expect(page.getByTestId("briefing-panel")).toContainText("survey-001-sizes");
   });
 });
 
@@ -318,12 +330,12 @@ test.describe("keyboard path", () => {
     const focusedTag = await page.evaluate(() => document.activeElement?.className ?? "");
     expect(focusedTag).toContain("ps-skip-link");
 
-    // Activating the briefing control by keyboard must work.
-    const briefingButton = page.getByRole("button", { name: /open the foundation briefing/i });
-    await briefingButton.focus();
+    // Activating a mission load control by keyboard must work.
+    const missionButton = page.getByTestId("load-mission-survey-001-sizes");
+    await missionButton.focus();
     await page.keyboard.press("Enter");
-    await expect(briefingButton).toBeDisabled();
-    await expect(page.getByTestId("briefing-panel")).toContainText("foundation-briefing");
+    await expect(missionButton).toBeDisabled();
+    await expect(page.getByTestId("briefing-panel")).toContainText("survey-001-sizes");
   });
 
   test("the skip link actually moves focus past the repeated header", async ({ page }) => {

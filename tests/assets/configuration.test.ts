@@ -118,11 +118,12 @@ describe("resolveQualityProfile", () => {
 });
 
 describe("asset manifest contract", () => {
-  it("ships empty on purpose, with the reason recorded", () => {
-    expect(ASSET_MANIFEST.assets).toEqual([]);
-    expect(ASSET_MANIFEST.generatedFrom).toContain("PS-02 bootstrap");
-    expect(assetsOfKind("mesh")).toEqual([]);
-    expect(findAsset("nothing")).toBeUndefined();
+  it("registers the PS-05 placeholder body pipeline", () => {
+    expect(ASSET_MANIFEST.assets.length).toBeGreaterThan(0);
+    expect(ASSET_MANIFEST.generatedFrom).toContain("PS-05");
+    expect(findAsset("body.placeholder.mesh")?.provenanceId).toMatch(/^generated\./);
+    expect(findAsset("body.placeholder.albedo")?.shippingPath).toContain(".ktx2");
+    expect(assetsOfKind("mesh").length).toBeGreaterThan(0);
   });
 
   it("rejects an unsafe shipping path", () => {
@@ -142,16 +143,14 @@ describe("asset manifest contract", () => {
       bytes: 1234,
       lodVariants: [],
       minimumQuality: null,
-      provenanceId: "prov-1",
+      provenanceId: "generated.test-probe",
     };
     expect(resolveAssetUrl(asset, "/game-assets/planetary-survey/0.1.0/")).toBe(
       "/game-assets/planetary-survey/0.1.0/assets/probe.glb",
     );
-    // A base without a trailing slash must not produce a broken URL.
     expect(resolveAssetUrl(asset, "/game-assets/planetary-survey/0.1.0")).toBe(
       "/game-assets/planetary-survey/0.1.0/assets/probe.glb",
     );
-    // A leading slash on the shipping path must not escape the base.
     expect(resolveAssetUrl({ ...asset, shippingPath: "/assets/probe.glb" }, "/nested/")).toBe(
       "/nested/assets/probe.glb",
     );

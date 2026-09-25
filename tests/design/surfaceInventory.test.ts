@@ -127,7 +127,7 @@ describe("maturity is reported honestly", () => {
     const specified = SURFACES.filter((entry) => entry.maturity === "specified");
     const partial = SURFACES.filter((entry) => entry.maturity === "partial");
     expect(implemented.length + specified.length + partial.length).toBe(SURFACES.length);
-    // The renderer story has not started, so most of the workstation is specified.
+    // Downstream loop steps remain specified until their owning stories land.
     expect(specified.length).toBeGreaterThan(0);
   });
 

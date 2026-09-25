@@ -38,8 +38,61 @@ describe("projectRenderSnapshot", () => {
     expect(projected.presentation.mode).toBe("body");
   });
 
-  it("states that the comparison view is not drawn to literal scale", () => {
+  it("states body-relative presentation for a surveyed target", () => {
     const projected = projectRenderSnapshot(surveyedSnapshot(), DEV_FIXTURE_BODIES);
+    expect(projected.presentation.scaleMode).toBe("bodyRelative");
+    expect(projected.presentation.scaleNotice).toContain("body-relative");
+    expect(projected.presentation.cameraMode).toBe("inspection");
+  });
+
+  it("uses the system-comparison declaration for target selection", () => {
+    let snapshot = initialMissionSnapshot(1);
+    for (const intent of [
+      { kind: "loadMission", missionId: "m", seed: 1 },
+      { kind: "beginBriefing" },
+    ] as const) {
+      const result = applyIntent(snapshot, intent, context);
+      if (result.kind !== "applied") throw new Error(`rejected: ${result.reason}`);
+      snapshot = result.snapshot;
+    }
+    const projected = projectRenderSnapshot(snapshot, DEV_FIXTURE_BODIES, [
+      {
+        id: "SIM-7",
+        representationId: "system-comparison",
+        kind: "nonLinearCompression",
+        ratio: 0.0001,
+        sourceBasisIds: ["fixture.alpha.radius"],
+        rationale: "legibility",
+        modelBoundary: "not a measurement",
+        learnerText: "This comparison view is compressed, not literal.",
+        reviewStatus: "unreviewed",
+      },
+    ]);
+    expect(projected.presentation.mode).toBe("systemComparison");
+    expect(projected.presentation.scaleMode).toBe("comparativeNonLiteral");
+    expect(projected.presentation.declarationId).toBe("SIM-7");
+    expect(projected.presentation.scaleNotice).toContain("compressed");
+    expect(projected.presentation.cameraMode).toBe("systemComparison");
+  });
+
+  it("states that the comparison view is not drawn to literal scale", () => {
+    const projected = projectRenderSnapshot(
+      { ...surveyedSnapshot(), phase: "comparison" },
+      DEV_FIXTURE_BODIES,
+      [
+        {
+          id: "SIM-7",
+          representationId: "system-comparison",
+          kind: "nonLinearCompression",
+          ratio: 0.0001,
+          sourceBasisIds: ["fixture.alpha.radius"],
+          rationale: "legibility",
+          modelBoundary: "not a measurement",
+          learnerText: "This comparison view is not drawn to literal scale.",
+          reviewStatus: "unreviewed",
+        },
+      ],
+    );
     expect(projected.presentation.scaleNotice).toContain("not drawn to literal scale");
   });
 
@@ -75,6 +128,14 @@ describe("projectRenderSnapshot", () => {
       "observationActive",
       "phase",
       "presentation",
+    ]);
+    expect(Object.keys(projected.presentation).sort()).toEqual([
+      "cameraMode",
+      "declarationId",
+      "mode",
+      "scaleFactor",
+      "scaleMode",
+      "scaleNotice",
     ]);
   });
 
