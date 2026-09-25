@@ -97,9 +97,16 @@ describe("golden trace: the guided mission played correctly", () => {
       expect: "applied",
     },
     { note: "submit the claim", intent: { kind: "submitClaim" }, expect: "applied" },
+    { note: "open the debrief", intent: { kind: "openDebrief" }, expect: "applied" },
+    { note: "complete the mission", intent: { kind: "completeMission" }, expect: "applied" },
   ];
 
-  const run = runMissionTrace({ steps: trace, bodies: PLANETARY_BODIES, seed: GUIDED_SEED });
+  const run = runMissionTrace({
+    steps: trace,
+    bodies: PLANETARY_BODIES,
+    seed: GUIDED_SEED,
+    missions: MISSIONS,
+  });
 
   it("records a step for every intent and refuses nothing on a legal path", () => {
     expect(run.steps).toHaveLength(trace.length);
@@ -120,6 +127,17 @@ describe("golden trace: the guided mission played correctly", () => {
     expect(run.finalSnapshot.evidence).toHaveLength(3);
   });
 
+  it("finishes the mission on the evaluated claim, and records the outcome", () => {
+    // PS-08 closes STATUS constraint 6: the loop now reaches debrief and complete.
+    // Completion records the verdict rather than requiring a supported one (D-35).
+    expect(run.finalPhase).toBe("complete");
+    expect(run.finalSnapshot.debrief?.verdict).toBe("supported");
+    expect(run.finalSnapshot.completion?.verdict).toBe("supported");
+    expect(run.finalSnapshot.completion?.targetMet).toBe(true);
+    expect(run.finalSnapshot.completion?.observationsCaptured).toBe(3);
+    expect(run.finalSnapshot.completion?.claimAttempts).toBe(1);
+  });
+
   it("measures every world the brief names, and nothing else", () => {
     expect(run.finalSnapshot.evidence.map((record) => record.bodyId)).toEqual([
       MOON_ID,
@@ -134,7 +152,12 @@ describe("golden trace: the guided mission played correctly", () => {
   });
 
   it("replays identically, byte for byte", () => {
-    const again = runMissionTrace({ steps: trace, bodies: PLANETARY_BODIES, seed: GUIDED_SEED });
+    const again = runMissionTrace({
+      steps: trace,
+      bodies: PLANETARY_BODIES,
+      seed: GUIDED_SEED,
+      missions: MISSIONS,
+    });
     expect(again.serialized).toBe(run.serialized);
     expect(again.digest).toBe(run.digest);
   });
@@ -143,7 +166,7 @@ describe("golden trace: the guided mission played correctly", () => {
     // Recompute deliberately. This covers the step log and the final snapshot, so
     // it moves when the state machine, the claim contract, or a measured value
     // changes — which is the point of a trace over a snapshot.
-    expect(run.digest).toBe("28f1af12");
+    expect(run.digest).toBe("aa1a94c8");
   });
 });
 
@@ -197,9 +220,9 @@ describe("golden trace: measuring both worlds is not the same as citing both", (
   });
 
   it("lets the learner recover to a supported claim within the same notebook", () => {
-    // The recovery path the state machine actually supports: revise, re-measure
-    // (one instrument reading, no new survey), compare, draft citing both, submit.
-    // Nothing is re-surveyed and no measurement is lost.
+    // The recovery path PS-08 supports: revise, redraft citing both worlds from the
+    // notebook that already answers the question, submit. No reading is retaken and
+    // no measurement is lost (D-36).
     const revised = runMissionTrace({
       steps: [
         {
@@ -228,13 +251,7 @@ describe("golden trace: measuring both worlds is not the same as citing both", (
         { note: "submit", intent: { kind: "submitClaim" }, expect: "applied" },
         { note: "revise the claim", intent: { kind: "reviseClaim" }, expect: "applied" },
         {
-          note: "re-read one world, which is what revision currently requires",
-          intent: { kind: "measure", attributeId: "meanRadius" },
-          expect: "applied",
-        },
-        { note: "compare again", intent: { kind: "compare" }, expect: "applied" },
-        {
-          note: "draft again, citing both worlds from the existing notebook",
+          note: "redraft at once, citing both worlds from the existing notebook — no new reading",
           intent: (snapshot) => ({
             kind: "draftClaim",
             draft: {
@@ -257,37 +274,45 @@ describe("golden trace: measuring both worlds is not the same as citing both", (
     });
 
     expect(revised.finalSnapshot.evaluation?.verdict).toBe("supported");
-    // Recovery cost two extra readings and no lost evidence: the notebook still
-    // holds exactly the two worlds it held before.
+    // Recovery cost no readings and lost no evidence: the notebook still holds exactly
+    // the two worlds it held before, and the claim was submitted twice.
     expect(revised.finalSnapshot.evidence).toHaveLength(2);
+    expect(revised.finalSnapshot.claimAttempts).toBe(2);
   });
 
-  it("records that revising a claim currently forces a redundant re-measurement", () => {
-    // `reviseClaim` returns the learner to `observing`, where `draftClaim` is not
-    // legal — so fixing a citation that was simply incomplete costs one extra
-    // instrument reading and one extra comparison, even though the notebook already
-    // holds everything the revised claim needs. This is a state-machine rough edge
-    // and it belongs to PS-08, which owns revision and debrief; it is pinned here
-    // so the guided-mission slice cannot ship with it unnoticed.
+  it("reopens the claim in place on revision, with no redundant reading", () => {
+    // PS-08 closes STATUS constraint 7. Revision lands in `claimDrafting`, so a
+    // learner who only failed to cite can redraft from the notebook immediately.
     const run = runMissionTrace({
       steps: [
         ...trace,
         { note: "revise the claim", intent: { kind: "reviseClaim" }, expect: "applied" },
         {
-          note: "try to draft the corrected citation straight away",
-          intent: { kind: "draftClaim", draft: { attributeId: "meanRadius", subject: VENUS_ID, relation: "largerThan", object: MARS_ID, citedEvidenceIds: [] } },
-          expect: "rejected",
+          note: "redraft the corrected citation straight away",
+          intent: (snapshot) => ({
+            kind: "draftClaim",
+            draft: {
+              attributeId: "meanRadius",
+              subject: VENUS_ID,
+              relation: "largerThan",
+              object: MARS_ID,
+              citedEvidenceIds: citedEvidenceIds(snapshot, [
+                [VENUS_ID, "meanRadius"],
+                [MARS_ID, "meanRadius"],
+              ]),
+            },
+          }),
+          expect: "applied",
         },
       ],
       bodies: PLANETARY_BODIES,
       seed: GUIDED_SEED,
     });
 
-    // The refusal proves the edge: the learner is back in the field, holding a
-    // notebook that already answers the question, and cannot redraft from there.
-    expect(run.finalPhase).toBe("observing");
-    expect(run.rejections).toHaveLength(1);
-    expect(run.rejections[0]).toContain("not available while the mission is in");
+    expect(run.finalPhase).toBe("claimDrafting");
+    expect(run.rejections).toHaveLength(0);
+    expect(run.finalSnapshot.evidence).toHaveLength(2);
+    expect(run.finalSnapshot.claim?.citedEvidenceIds).toHaveLength(2);
   });
 });
 
@@ -522,47 +547,45 @@ describe("the state machine's current boundary", () => {
     expect(deadEnds).toEqual([]);
   });
 
-  it("records exactly how far a mission can get today", () => {
-    // A trace can end with a supported claim and still be unable to finish the
-    // mission: `debrief` and `complete` are modelled but nothing transitions into
-    // them, so the frozen loop's last two steps are not implemented. That is PS-08's
-    // scope (scoring and debrief), so it is pinned here rather than invented by a
-    // content story — a content fixture that quietly stopped at a supported claim
-    // would read as a complete loop.
-    const phasesSeen = [
-      ...new Set(
-        runMissionTrace({
-          steps: [
-            {
-              note: "load the guided mission",
-              intent: { kind: "loadMission", missionId: GUIDED_MISSION_ID, seed: GUIDED_SEED },
-              expect: "applied",
-            },
-            { note: "read the brief", intent: { kind: "beginBriefing" }, expect: "applied" },
-            ...GUIDED_SURVEY,
-            { note: "compare", intent: { kind: "compare" }, expect: "applied" },
-            {
-              note: "draft",
-              intent: (snapshot) => ({
-                kind: "draftClaim",
-                draft: {
-                  attributeId: "meanRadius",
-                  subject: VENUS_ID,
-                  relation: "largerThan",
-                  object: MARS_ID,
-                  citedEvidenceIds: citedEvidenceIds(snapshot, GUIDED_SIZES_CLAIM_PAIRS),
-                },
-              }),
-              expect: "applied",
-            },
-            { note: "submit", intent: { kind: "submitClaim" }, expect: "applied" },
-          ],
-          bodies: PLANETARY_BODIES,
-          seed: GUIDED_SEED,
-        }).steps.map((step) => step.phase),
-      ),
+  it("runs the frozen loop end to end, from brief to complete", () => {
+    // PS-08 closed the boundary this test used to pin. The whole loop is reachable
+    // now, and every phase it passes through still has a forward move, so no step of
+    // the frozen path is a dead end.
+    const steps: readonly TraceStep[] = [
+      {
+        note: "load the guided mission",
+        intent: { kind: "loadMission", missionId: GUIDED_MISSION_ID, seed: GUIDED_SEED },
+        expect: "applied",
+      },
+      { note: "read the brief", intent: { kind: "beginBriefing" }, expect: "applied" },
+      ...GUIDED_SURVEY,
+      { note: "compare", intent: { kind: "compare" }, expect: "applied" },
+      {
+        note: "draft",
+        intent: (snapshot) => ({
+          kind: "draftClaim",
+          draft: {
+            attributeId: "meanRadius",
+            subject: VENUS_ID,
+            relation: "largerThan",
+            object: MARS_ID,
+            citedEvidenceIds: citedEvidenceIds(snapshot, GUIDED_SIZES_CLAIM_PAIRS),
+          },
+        }),
+        expect: "applied",
+      },
+      { note: "submit", intent: { kind: "submitClaim" }, expect: "applied" },
+      { note: "open the debrief", intent: { kind: "openDebrief" }, expect: "applied" },
+      { note: "complete", intent: { kind: "completeMission" }, expect: "applied" },
     ];
+    const run = runMissionTrace({
+      steps,
+      bodies: PLANETARY_BODIES,
+      seed: GUIDED_SEED,
+      missions: MISSIONS,
+    });
 
+    const phasesSeen = [...new Set(run.steps.map((step) => step.phase))];
     expect(phasesSeen).toEqual([
       "briefing",
       "targetSelection",
@@ -572,10 +595,15 @@ describe("the state machine's current boundary", () => {
       "comparison",
       "claimDrafting",
       "claimSubmitted",
+      "debrief",
+      "complete",
     ]);
-    expect(phasesSeen).not.toContain("debrief");
-    expect(phasesSeen).not.toContain("complete");
+
+    const deadEnds = phasesSeen.filter((phase) => forwardIntentsIn(phase).length === 0);
+    expect(deadEnds).toEqual([]);
     expect(forwardIntentsIn("claimSubmitted")).toContain("reviseClaim");
+    expect(forwardIntentsIn("debrief")).toContain("completeMission");
+    expect(forwardIntentsIn("complete")).toContain("reviseClaim");
   });
 
   it("takes every required observation in a trace from the mission's own list", () => {

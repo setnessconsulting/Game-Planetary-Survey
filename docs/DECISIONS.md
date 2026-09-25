@@ -545,3 +545,90 @@ records.
 **Consequence:** PS-05 placeholders use `generated.ps05-placeholder-*` ids. The
 manifest comment matches the gate. External or agency-derived art still needs a
 complete provenance record before release.
+
+## D-35 — A mission completes on any evaluated claim, and records the verdict
+
+**Decision:** A mission reaches `debrief` as soon as a claim has been evaluated, and
+`complete` from `debrief`, whatever the verdict. Completion does **not** require a
+`supported` claim. The completion summary records the verdict, so a finished mission
+is not the same as a correct one, and `revise` stays available from `debrief` and
+`complete`.
+
+**Rationale:** STATUS constraint 6 recorded that a supported claim could not finish a
+mission at all. The tempting fix — complete only on `supported` — trades one dead end
+for another: a learner whose reasoning is wrong would have to keep revising until they
+happen to be right, which is the punitive loop `docs/UX_USER_FLOW.md` step 11 and
+`docs/PRD.md` §11 forbid. Finishing is a learner's action; being right is a separate,
+recorded fact.
+
+**Consequence:** `openDebrief` and `completeMission` exist, the trace suite runs the
+loop to `complete`, and `CompletionSummary.targetMet` — not the phase — is what states
+whether the claim target was supported.
+
+## D-36 — Revision reopens the claim in place
+
+**Decision:** `reviseClaim` keeps the notebook **and** the drafted claim, clears only
+the stale verdict/debrief, and lands in `claimDrafting`. The learner can re-cite and
+resubmit immediately, or collect more evidence first.
+
+**Rationale:** STATUS constraint 7: `reviseClaim` used to return to `observing`, where
+`draftClaim` is illegal, so fixing a citation that was merely incomplete cost one
+extra instrument reading and one extra comparison. Revision is a designed first-class
+path, and a revision that charges for data the learner already collected teaches the
+wrong lesson about evidence.
+
+**Consequence:** the recovery trace asserts that a redraft after revision is legal
+with no new measurement. Revision no longer changes the notebook or the evidence count.
+
+## D-37 — Scoring is named credits and a word, never points or speed
+
+**Decision:** `scoreClaim` returns a `ClaimScoreLevel` — `supported`,
+`right-answer-uncited`, `reasoning-mismatch`, `uncheckable` — plus named credits and
+the four `ClaimDimensions`. There is no numeric score, percentage, multiplier, timer,
+streak, or rank anywhere in the type.
+
+**Rationale:** GAME-372 asks for partial credit that separates *correct claim, weak
+evidence* from *incorrect claim, useful evidence*. A number would collapse those two
+back together and invite speed pressure, which `docs/PRD.md` §9 excludes. The
+distinction is made by asking a second question — does the stated relation follow from
+the learner's own notebook, cited or not — while `evaluateClaim` keeps judging the
+claim strictly as cited, so scoring adds feedback without loosening the
+anti-guessing rule.
+
+**Consequence:** `right-answer-uncited` still does not count as supported and cannot
+satisfy a claim target; it only tells the learner to cite, not to re-measure.
+
+## D-38 — Hints are authored content revealed one at a time, and never choose
+
+**Decision:** Hints come from `mission.hints` and are revealed in authored order as
+`hintsUsed` grows (`src/domain/hints.ts`). Every mission must author at least one hint
+(`catalog-no-hints`). A hint has no side effect: it never selects a world, an
+instrument, or a claim, and it never marks a step done. There is no quota.
+
+**Rationale:** GAME-372 wants progressive, evidence-oriented hints that do not reveal
+the answer; `docs/UX_USER_FLOW.md` §4 says hints guide attention and may not make a
+required choice. Making the hint an inert piece of text is what makes "a hint never
+performs the choice" a property of the code rather than a promise about it.
+
+**Consequence:** `hintReveal` is pure and tested; the `hints` global-state surface is
+in the inventory; and asking for a hint changes only `hintsUsed`.
+
+## D-39 — The debrief is a domain artefact, so a trace can cover it
+
+**Decision:** The debrief (`buildMissionDebrief`) and the completion summary
+(`buildCompletionSummary`) are pure domain functions stored on the mission snapshot,
+not UI text assembled at render time. The debrief quotes the mission's authored facts
+with their register ids, names the cited observations that support or refute the
+claim, and attaches the matching authored misconception only when the claim was
+`contradicted`.
+
+**Rationale:** PS-04's golden traces are the strongest evidence that the loop's logic
+is provable without a renderer. A debrief built in React would be outside that, and a
+`sourced` fact could reach a learner with nothing checking where it came from. Keeping
+it in the domain means the debrief is deterministic, replayable, and covered by the
+same digest discipline as the rest of the mission.
+
+**Consequence:** `MissionDebrief` and `CompletionSummary` are JSON-serializable and
+appear in traces; every `sourced` fact carries its register ids; the completion
+summary carries no clock, device, identity, or free text, so a later host integration
+can consume it without importing learner work.

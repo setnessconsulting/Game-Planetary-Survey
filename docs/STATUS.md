@@ -1,6 +1,6 @@
 # Planetary Survey — Status
 
-Last updated: 2026-09-24
+Last updated: 2026-09-25
 Jira Epic: `GAME-362`
 Canonical repository: `setnessconsulting/Game-Planetary-Survey` (`main`)
 
@@ -8,7 +8,7 @@ Canonical repository: `setnessconsulting/Game-Planetary-Survey` (`main`)
 
 ## Current phase
 
-**Current phase: comparison board and a11y equivalents (PS-07) complete on canonical main.**
+**Current phase: mission engine — claim, citation, debrief, hints, and recovery (PS-08) complete on canonical main.**
 
 The repository contains:
 
@@ -36,12 +36,19 @@ The repository contains:
 - instrument selection, observe/measure, and evidence capture wired through the
   shell on the existing domain contracts (**PS-06** / GAME-370);
 - comparison board with table-first findings, optional chart twin, and expanded
-  a11y coverage through compare (**PS-07** / GAME-371).
+  a11y coverage through compare (**PS-07** / GAME-371);
+- the full claim loop on the domain contracts: a structured, evaluable claim form,
+  explicit evidence citation counted as a learner choice, submit and evaluation, a
+  debrief built from the mission's own source-traceable facts, a bounded completion
+  summary, progressive content-driven hints, and revision that reopens the claim in
+  place (**PS-08** / GAME-372).
 
 Authored missions load into the workstation. Learners can select a mission-offered
-instrument, measure with honest unavailable paths, capture evidence, and compare
-worlds on a semantic table. Claim completion and production art remain later
-stories. Independent science review remains outstanding.
+instrument, measure with honest unavailable paths, capture evidence, compare worlds
+on a semantic table, draft a claim, cite the evidence behind it, submit it for
+evaluation, read a sourced debrief, and finish the mission — revising in place if
+their citation or reasoning fell short. Guided-mission production art and target-age
+qualification remain PS-09's. Independent science review remains outstanding.
 
 **No independent science review has occurred.** Every value is transcribed from an
 agency source and machine-checked for physical plausibility; none has been checked
@@ -62,7 +69,7 @@ is the material prepared for that review, and
 | GAME-369 | PS-05 — Babylon renderer foundation | **complete** | GAME-369; real-browser renderer evidence; science/visual review not claimed |
 | GAME-370 | PS-06 — instruments/evidence capture | **complete** | GAME-370; instrument → measure → capture in shell; science review not claimed |
 | GAME-371 | PS-07 — notebook/comparison/a11y equivalents | **complete** | GAME-371; comparison board + a11y through compare; science/visual review not claimed |
-| GAME-372 | PS-08 — mission engine/scoring/debrief | blocked | by PS-04 + PS-07 Done → unblocked for claim/debrief work |
+| GAME-372 | PS-08 — mission engine/claim/citation/debrief | **complete** | GAME-372; claim → cite → submit → debrief → complete in the shell; constraints 6–7 closed; science/visual review not claimed |
 | GAME-373 | PS-09 — guided-mission vertical slice | blocked | hard gate before content expansion |
 | GAME-374 | PS-10 — visual/motion/audio polish | blocked | by PS-09 |
 | GAME-375 | PS-11 — independent missions/depth | blocked | by PS-09 |
@@ -109,27 +116,24 @@ is the material prepared for that review, and
    reviewer wants a different re-retrieval cadence, it is a one-line change, but
    nobody has yet signed off on a cadence as a science decision.
 
-6. **The mission loop has no debrief or completion transition.** `debrief` and
-   `complete` are modelled phases and nothing in `src/domain/mission.ts`
-   transitions into them, so a mission whose claim is `supported` still cannot
-   finish. `tests/content/missionTrace.test.ts` pins that boundary deliberately:
-   closing it means the state machine growing scoring and debrief, which is PS-08's
-   scope, and a content story should not invent the semantics. Found by writing the
-   golden traces PS-04 requires.
+6. **Constraint 6 — the missing debrief/completion transition — is resolved.**
+   `openDebrief` and `completeMission` now move an evaluated claim into `debrief` and
+   then `complete`, so a mission can finish. The trace suite that used to pin the
+   boundary now exercises the end of the loop instead. Recorded as D-35.
 
-7. **Revising a claim costs a redundant measurement.** `reviseClaim` returns the
-   learner to `observing`, where `draftClaim` is not legal, so fixing a citation
-   that was merely incomplete costs one extra instrument reading and one extra
-   comparison even though the notebook already holds everything the revised claim
-   needs. Also PS-08's, also pinned in the trace suite rather than left for someone
-   to find in a playtest.
+7. **Constraint 7 — revision forcing a redundant measurement — is resolved.**
+   `reviseClaim` reopens the claim in `claimDrafting` and keeps the notebook and the
+   drafted claim, so fixing an incomplete citation costs no extra instrument
+   reading. Recorded as D-36.
 
 ## Recorded decisions
 
 PS-01 decisions are closed (`DECISIONS.md` D-01…D-18); PS-02 and PS-03 added
-D-19…D-27; PS-04 added D-28…D-31; PS-DESIGN added D-32 and D-33. The outstanding-decision audit remains D-18: **no
-unresolved owner decision can materially change the runtime architecture or the v1
-learning loop.**
+D-19…D-27; PS-04 added D-28…D-31; PS-DESIGN added D-32 and D-33; PS-05 added
+D-34; PS-08 added D-35…D-39 (mission completion semantics, in-place revision,
+named-credit scoring, progressive hints, and the debrief as a domain artefact). The outstanding-decision
+audit remains D-18: **no unresolved owner decision can materially change the runtime
+architecture or the v1 learning loop.**
 
 D-28 was the one worth flagging. Learner-facing text is the first place in the
 product where a number is *derived* rather than cited, so no provenance gate can

@@ -127,8 +127,11 @@ describe("maturity is reported honestly", () => {
     const specified = SURFACES.filter((entry) => entry.maturity === "specified");
     const partial = SURFACES.filter((entry) => entry.maturity === "partial");
     expect(implemented.length + specified.length + partial.length).toBe(SURFACES.length);
-    // Downstream loop steps remain specified until their owning stories land.
-    expect(specified.length).toBeGreaterThan(0);
+    // PS-08 completed the frozen learner loop: every loop-step surface now ships.
+    // A regression that un-implements one would have to say so here first.
+    expect(
+      SURFACES.filter((entry) => entry.kind === "loop-step" && entry.maturity !== "implemented"),
+    ).toEqual([]);
   });
 
   it("makes every unfinished surface name what is missing and who owns it", () => {
@@ -144,12 +147,18 @@ describe("maturity is reported honestly", () => {
     }
   });
 
-  it("documents the mission-state-machine gaps the trace suite found", () => {
-    // Open constraints 6 and 7 in docs/STATUS.md. They are owned by PS-08, and a
-    // design document that omitted them would present the loop as finished.
-    expect(surface("debrief").knownGap).toContain("PS-08");
-    expect(surface("revise-replay").knownGap).toContain("constraint 6");
-    expect(surface("revise-replay").knownGap).toContain("constraint 7");
+  it("ships the loop's last steps rather than documenting them as gaps", () => {
+    // PS-08 closed open constraints 6 and 7 in docs/STATUS.md: the debrief and
+    // completion transitions exist, and revision no longer forces a re-reading. The
+    // surfaces that documented those gaps now ship, so a regression that un-built one
+    // would have to say so here first.
+    for (const id of ["claim", "cite-evidence", "debrief", "revise-replay"]) {
+      expect(surface(id).maturity, id).toBe("implemented");
+      expect(surface(id).knownGap, id).toBeNull();
+    }
+    const reviseStates = surface("revise-replay").states.map((state) => state.id);
+    expect(reviseStates).toContain("revision-in-place");
+    expect(reviseStates).not.toContain("revision-cost");
   });
 
   it("does not describe the fallback as an error the learner caused", () => {

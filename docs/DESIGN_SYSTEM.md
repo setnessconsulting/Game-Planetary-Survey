@@ -145,23 +145,24 @@ reading as decoration.
 
 ## 4. Surfaces
 
-Thirteen surfaces: one per step of the frozen loop, plus two global states that can
-occur during any step. The machine-readable form is `src/design/surfaces.ts`; every
-field below is required by `npm run check:design`.
+Fourteen surfaces: one per step of the frozen loop, plus three global states that
+can occur during any step. The machine-readable form is `src/design/surfaces.ts`;
+every field below is required by `npm run check:design`.
 
 | Surface | Loop step | States | Text/table equivalent | Uses 3D | Maturity |
 |---|---|---|---|---|---|
 | `workstation-load` | 1 Load | opening, online, limited, no 3D view | n/a | no | implemented |
-| `briefing` | 2 Briefing | nothing loaded, brief accepted | n/a | no | partial |
-| `target-selection` | 3 Choose/approach target | no target, target set, no value for that property | target table | **yes** | specified |
-| `instrument-selection` | 4 Select instrument | offered, selected, cannot answer | n/a | no | specified |
-| `observe-measure` | 5 Observe/measure | ready, measured, no authoritative value | the reading itself | **yes** | specified |
+| `briefing` | 2 Briefing | nothing loaded, brief accepted | n/a | no | implemented |
+| `target-selection` | 3 Choose/approach target | no target, target set, no value for that property | target table | **yes** | implemented |
+| `instrument-selection` | 4 Select instrument | offered, selected, cannot answer | n/a | no | implemented |
+| `observe-measure` | 5 Observe/measure | ready, measured, no authoritative value | the reading itself | **yes** | implemented |
 | `evidence-capture` | 6 Capture evidence | nothing to keep, captured, already captured | notebook table | no | implemented |
 | `comparison` | 7 Compare worlds | not comparable, compared, proportional offered | comparison table | **yes** | implemented |
-| `claim` | 8 Make a claim | drafting, nothing to cite yet, drafted | n/a | no | specified |
-| `cite-evidence` | 9 Cite evidence | none, one world, both worlds | n/a | no | specified |
-| `debrief` | 10 Debrief | supported, contradicted, not yet checkable | n/a | no | specified |
-| `revise-replay` | 11 Revise or replay | revise, replay, revision needs a reading | n/a | no | partial |
+| `claim` | 8 Make a claim | drafting, nothing to cite yet, drafted | n/a | no | implemented |
+| `cite-evidence` | 9 Cite evidence | none, one world, both worlds | n/a | no | implemented |
+| `debrief` | 10 Debrief | supported, contradicted, not yet checkable | n/a | no | implemented |
+| `revise-replay` | 11 Revise or replay | revise, replay, revision in place | n/a | no | implemented |
+| `hints` | global | no hint requested, hints shown, all hints shown | n/a | no | implemented |
 | `renderer-fallback` | global | limited, unavailable, context lost after capture | n/a | no (it *is* the alternative) | implemented |
 | `reduced-motion` | global | following the system, reduced by choice, full motion | n/a | no | implemented |
 
