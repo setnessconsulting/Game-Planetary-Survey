@@ -236,7 +236,7 @@ never the only route to any of the others.
 | notebook/comparison/chart design and data equivalents | PS-07 |
 | mission state machine, scoring, debrief, hints implementation | PS-08 |
 | guided-mission vertical-slice UX qualification | PS-09 |
-| motion/audio polish | PS-10 |
+| motion/audio polish | PS-10 — delivered (`ART_DIRECTION.md`, D-41…D-44); audio is muted by default, every cue has a non-audio equivalent, and the camera transition reads `--ps-motion-camera` |
 | independence, variants, balance | PS-11 |
 | comparator and target-age playtest findings | PS-14 |
 

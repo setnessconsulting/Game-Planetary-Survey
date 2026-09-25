@@ -3,16 +3,35 @@
  *
  * Contract (docs/TECHNICAL_DESIGN.md §8):
  *  - shipping 3D assets are glTF 2.0 / GLB;
- *  - shipping textures prefer KTX2 / Basis Universal;
+ *  - shipping textures are browser-decodable image formats;
  *  - every shipping asset has a provenance id before it can ship;
  *  - loading is progressive: the first mission must not require the whole
  *    production asset set (docs/PERFORMANCE_AND_DEVICE_BUDGETS.md §3.3).
  *
- * PS-05 populates renderer placeholders. PS-10 replaces them with production
- * art. Generated placeholders carry `generated.*` provenance ids (D-34); the
- * shipping gate rejects `provenanceId: null`.
+ * PS-10 replaced the PS-05 generated placeholders with production art. The
+ * `generated.ps05-placeholder-*` entries are gone: no placeholder ships, and
+ * `scripts/check-asset-pipeline.mjs` now fails the build if one reappears.
+ *
+ * THE MANIFEST IS DATA, NOT HAND-WRITTEN CODE.
+ * `assetManifest.json` is emitted by `scripts/generate-production-assets.mjs`
+ * from the same loop that wrote the bytes, and `provenanceManifest.json` is
+ * emitted alongside it. This module validates that data and exports it typed.
+ *
+ * The previous version hand-wrote the entries and had the gate recover them
+ * with regular expressions over the source text. That meant a template literal
+ * or a factory function registered zero assets and nothing noticed, which is
+ * how a 260-byte placeholder KTX2 could sit in the manifest for five stories
+ * while never actually being decodable at runtime. Reading real values removes
+ * that failure mode.
+ *
+ * Textures ship as PNG rather than KTX2. The contract *prefers*
+ * KTX2/Basis (docs/RENDERING_QUALITY_STRATEGY.md §8), but the approved runtime
+ * dependency set contains no KTX2 decoder, so a KTX2 texture cannot be decoded
+ * in the browser at all. Shipping an undecodable texture is worse than shipping
+ * a larger one that renders, so the deviation is recorded as a decision.
  */
 
+import manifestJson from "./assetManifest.json";
 import type { QualityProfileId } from "./qualityProfiles";
 
 export type AssetKind = "mesh" | "texture" | "environment" | "audio" | "content";
@@ -30,9 +49,10 @@ export interface AssetEntry {
   /** Tier below which this asset may be substituted by a coarser variant. */
   readonly minimumQuality: QualityProfileId | null;
   /**
-   * Provenance manifest id. Required for every shipping asset. Generated
-   * placeholders use a `generated.*` id (D-34); external art needs a full
-   * provenance record before release.
+   * Provenance manifest id. Required for every shipping asset.
+   *
+   * `scripts/check-asset-pipeline.mjs` resolves each id against
+   * `provenanceManifest.json`; a dangling id is a build failure, not a warning.
    */
   readonly provenanceId: string;
 }
@@ -43,45 +63,109 @@ export interface AssetManifest {
   readonly assets: readonly AssetEntry[];
 }
 
+const KINDS: readonly AssetKind[] = ["mesh", "texture", "environment", "audio", "content"];
+const QUALITY_IDS: readonly QualityProfileId[] = ["high", "standard", "reduced"];
+
+interface RawEntry {
+  logicalId?: unknown;
+  kind?: unknown;
+  shippingPath?: unknown;
+  bytes?: unknown;
+  lodVariants?: unknown;
+  minimumQuality?: unknown;
+  provenanceId?: unknown;
+}
+
 /**
- * The current manifest.
+ * Validate the generated manifest and narrow it.
  *
- * Byte sizes come from `node scripts/generate-placeholder-assets.mjs`.
+ * A malformed entry throws at module load rather than producing a scene that
+ * silently falls back, because "the asset was missing" and "the manifest was
+ * wrong" are very different bugs and only one of them is visible in a browser.
  */
-export const ASSET_MANIFEST: AssetManifest = {
-  version: "0.5.0",
-  generatedFrom:
-    "PS-05 placeholder pipeline: generated GLB/KTX2 bodies with generated.* provenance. PS-10 owns production art.",
-  assets: [
-    {
-      logicalId: "body.placeholder.mesh",
-      kind: "mesh",
-      shippingPath: "assets/bodies/placeholder-body.glb",
-      bytes: 19132,
-      lodVariants: ["assets/bodies/placeholder-body-lod1.glb", "assets/bodies/placeholder-body.glb"],
-      minimumQuality: null,
-      provenanceId: "generated.ps05-placeholder-body",
-    },
-    {
-      logicalId: "body.placeholder.mesh.lod1",
-      kind: "mesh",
-      shippingPath: "assets/bodies/placeholder-body-lod1.glb",
-      bytes: 5816,
-      lodVariants: [],
-      minimumQuality: "reduced",
-      provenanceId: "generated.ps05-placeholder-body-lod1",
-    },
-    {
-      logicalId: "body.placeholder.albedo",
-      kind: "texture",
-      shippingPath: "assets/bodies/placeholder-albedo.ktx2",
-      bytes: 260,
-      lodVariants: [],
-      minimumQuality: null,
-      provenanceId: "generated.ps05-placeholder-albedo",
-    },
-  ],
-};
+function parseManifest(raw: unknown): AssetManifest {
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error("assetManifest.json must be an object");
+  }
+  const doc = raw as { version?: unknown; generatedFrom?: unknown; assets?: unknown };
+  if (typeof doc.version !== "string" || typeof doc.generatedFrom !== "string") {
+    throw new Error("assetManifest.json is missing version/generatedFrom");
+  }
+  if (!Array.isArray(doc.assets)) {
+    throw new Error("assetManifest.json is missing an assets array");
+  }
+
+  const assets: AssetEntry[] = doc.assets.map((entry: RawEntry, index: number) => {
+    const where = `assetManifest.json entry ${index}`;
+    if (typeof entry.logicalId !== "string" || entry.logicalId.length === 0) {
+      throw new Error(`${where} has no logicalId`);
+    }
+    if (typeof entry.shippingPath !== "string" || entry.shippingPath.length === 0) {
+      throw new Error(`${where} (${entry.logicalId}) has no shippingPath`);
+    }
+    if (typeof entry.provenanceId !== "string" || entry.provenanceId.length === 0) {
+      throw new Error(
+        `${where} (${entry.logicalId}) has no provenanceId; every shipping asset needs provenance.`,
+      );
+    }
+    if (!KINDS.includes(entry.kind as AssetKind)) {
+      throw new Error(`${where} (${entry.logicalId}) has an unknown kind "${String(entry.kind)}"`);
+    }
+    if (typeof entry.bytes !== "number" || !Number.isInteger(entry.bytes) || entry.bytes < 0) {
+      throw new Error(`${where} (${entry.logicalId}) has a non-integer byte count`);
+    }
+    if (!Array.isArray(entry.lodVariants)) {
+      throw new Error(`${where} (${entry.logicalId}) has no lodVariants array`);
+    }
+    const minimumQuality = entry.minimumQuality;
+    if (minimumQuality !== null && !QUALITY_IDS.includes(minimumQuality as QualityProfileId)) {
+      throw new Error(
+        `${where} (${entry.logicalId}) has an unknown minimumQuality "${String(minimumQuality)}"`,
+      );
+    }
+    return {
+      logicalId: entry.logicalId,
+      kind: entry.kind as AssetKind,
+      shippingPath: entry.shippingPath,
+      bytes: entry.bytes,
+      lodVariants: entry.lodVariants as string[],
+      minimumQuality: minimumQuality as QualityProfileId | null,
+      provenanceId: entry.provenanceId,
+    };
+  });
+
+  const seen = new Set<string>();
+  for (const asset of assets) {
+    if (seen.has(asset.logicalId)) {
+      throw new Error(`assetManifest.json registers "${asset.logicalId}" twice`);
+    }
+    seen.add(asset.logicalId);
+  }
+
+  return { version: doc.version, generatedFrom: doc.generatedFrom, assets };
+}
+
+/**
+ * Body ids that carry production art, read from the generated manifest so the
+ * list can never disagree with what actually ships.
+ */
+function parseProductionBodyIds(): readonly string[] {
+  const doc = manifestJson as { productionBodyIds?: unknown };
+  if (!Array.isArray(doc.productionBodyIds)) {
+    throw new Error("assetManifest.json is missing productionBodyIds");
+  }
+  return doc.productionBodyIds as string[];
+}
+
+export const ASSET_MANIFEST: AssetManifest = parseManifest(manifestJson);
+export const PRODUCTION_BODY_IDS: readonly string[] = parseProductionBodyIds();
+
+export function isProductionBodyId(value: string): boolean {
+  return PRODUCTION_BODY_IDS.includes(value);
+}
+
+/** The environment map every body is lit by. Shared, loaded once. */
+export const ENVIRONMENT_LOGICAL_ID = "environment.survey.hdr";
 
 export function assetsOfKind(kind: AssetKind): readonly AssetEntry[] {
   return ASSET_MANIFEST.assets.filter((asset) => asset.kind === kind);
@@ -96,10 +180,7 @@ export function findAsset(logicalId: string): AssetEntry | undefined {
  *
  * Reduced prefers the coarse LOD when registered; higher tiers use the fine mesh.
  */
-export function meshPathForQuality(
-  mesh: AssetEntry,
-  quality: QualityProfileId,
-): string {
+export function meshPathForQuality(mesh: AssetEntry, quality: QualityProfileId): string {
   if (quality === "reduced" && mesh.lodVariants.length > 0) {
     return mesh.lodVariants[0] ?? mesh.shippingPath;
   }

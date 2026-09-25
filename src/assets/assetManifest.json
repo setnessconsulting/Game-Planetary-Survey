@@ -1,0 +1,218 @@
+{
+  "version": "1.0.0",
+  "generatedFrom": "PS-10 production asset pipeline (scripts/generate-production-assets.mjs): per-body GLB meshes with LODs, per-body albedo and normal-map PNGs, and one shared prefiltered HDR environment. All assets are original work with agency origin none; see src/assets/provenanceManifest.json.",
+  "productionBodyIds": [
+    "moon",
+    "mars",
+    "venus",
+    "titan",
+    "europa"
+  ],
+  "note": "Production art. No placeholder ships. Textures are PNG because the approved runtime dependency set has no KTX2 decoder; see docs/DECISIONS.md.",
+  "assets": [
+    {
+      "logicalId": "body.moon.mesh",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/moon-body.glb",
+      "bytes": 276508,
+      "lodVariants": [
+        "assets/bodies/moon-body-lod1.glb",
+        "assets/bodies/moon-body.glb"
+      ],
+      "minimumQuality": null,
+      "provenanceId": "assets/bodies/moon-body.glb"
+    },
+    {
+      "logicalId": "body.moon.mesh.lod1",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/moon-body-lod1.glb",
+      "bytes": 30880,
+      "lodVariants": [],
+      "minimumQuality": "reduced",
+      "provenanceId": "assets/bodies/moon-body-lod1.glb"
+    },
+    {
+      "logicalId": "body.moon.albedo",
+      "kind": "texture",
+      "shippingPath": "assets/textures/moon-albedo.png",
+      "bytes": 158122,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/moon-albedo.png"
+    },
+    {
+      "logicalId": "body.moon.normal",
+      "kind": "texture",
+      "shippingPath": "assets/textures/moon-normal.png",
+      "bytes": 103921,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/moon-normal.png"
+    },
+    {
+      "logicalId": "body.mars.mesh",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/mars-body.glb",
+      "bytes": 276512,
+      "lodVariants": [
+        "assets/bodies/mars-body-lod1.glb",
+        "assets/bodies/mars-body.glb"
+      ],
+      "minimumQuality": null,
+      "provenanceId": "assets/bodies/mars-body.glb"
+    },
+    {
+      "logicalId": "body.mars.mesh.lod1",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/mars-body-lod1.glb",
+      "bytes": 30880,
+      "lodVariants": [],
+      "minimumQuality": "reduced",
+      "provenanceId": "assets/bodies/mars-body-lod1.glb"
+    },
+    {
+      "logicalId": "body.mars.albedo",
+      "kind": "texture",
+      "shippingPath": "assets/textures/mars-albedo.png",
+      "bytes": 177932,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/mars-albedo.png"
+    },
+    {
+      "logicalId": "body.mars.normal",
+      "kind": "texture",
+      "shippingPath": "assets/textures/mars-normal.png",
+      "bytes": 117227,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/mars-normal.png"
+    },
+    {
+      "logicalId": "body.venus.mesh",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/venus-body.glb",
+      "bytes": 276508,
+      "lodVariants": [
+        "assets/bodies/venus-body-lod1.glb",
+        "assets/bodies/venus-body.glb"
+      ],
+      "minimumQuality": null,
+      "provenanceId": "assets/bodies/venus-body.glb"
+    },
+    {
+      "logicalId": "body.venus.mesh.lod1",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/venus-body-lod1.glb",
+      "bytes": 30880,
+      "lodVariants": [],
+      "minimumQuality": "reduced",
+      "provenanceId": "assets/bodies/venus-body-lod1.glb"
+    },
+    {
+      "logicalId": "body.venus.albedo",
+      "kind": "texture",
+      "shippingPath": "assets/textures/venus-albedo.png",
+      "bytes": 218446,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/venus-albedo.png"
+    },
+    {
+      "logicalId": "body.venus.normal",
+      "kind": "texture",
+      "shippingPath": "assets/textures/venus-normal.png",
+      "bytes": 33391,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/venus-normal.png"
+    },
+    {
+      "logicalId": "body.titan.mesh",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/titan-body.glb",
+      "bytes": 276516,
+      "lodVariants": [
+        "assets/bodies/titan-body-lod1.glb",
+        "assets/bodies/titan-body.glb"
+      ],
+      "minimumQuality": null,
+      "provenanceId": "assets/bodies/titan-body.glb"
+    },
+    {
+      "logicalId": "body.titan.mesh.lod1",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/titan-body-lod1.glb",
+      "bytes": 30880,
+      "lodVariants": [],
+      "minimumQuality": "reduced",
+      "provenanceId": "assets/bodies/titan-body-lod1.glb"
+    },
+    {
+      "logicalId": "body.titan.albedo",
+      "kind": "texture",
+      "shippingPath": "assets/textures/titan-albedo.png",
+      "bytes": 166242,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/titan-albedo.png"
+    },
+    {
+      "logicalId": "body.titan.normal",
+      "kind": "texture",
+      "shippingPath": "assets/textures/titan-normal.png",
+      "bytes": 29824,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/titan-normal.png"
+    },
+    {
+      "logicalId": "body.europa.mesh",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/europa-body.glb",
+      "bytes": 276516,
+      "lodVariants": [
+        "assets/bodies/europa-body-lod1.glb",
+        "assets/bodies/europa-body.glb"
+      ],
+      "minimumQuality": null,
+      "provenanceId": "assets/bodies/europa-body.glb"
+    },
+    {
+      "logicalId": "body.europa.mesh.lod1",
+      "kind": "mesh",
+      "shippingPath": "assets/bodies/europa-body-lod1.glb",
+      "bytes": 30884,
+      "lodVariants": [],
+      "minimumQuality": "reduced",
+      "provenanceId": "assets/bodies/europa-body-lod1.glb"
+    },
+    {
+      "logicalId": "body.europa.albedo",
+      "kind": "texture",
+      "shippingPath": "assets/textures/europa-albedo.png",
+      "bytes": 285627,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/europa-albedo.png"
+    },
+    {
+      "logicalId": "body.europa.normal",
+      "kind": "texture",
+      "shippingPath": "assets/textures/europa-normal.png",
+      "bytes": 119249,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/textures/europa-normal.png"
+    },
+    {
+      "logicalId": "environment.survey.hdr",
+      "kind": "environment",
+      "shippingPath": "assets/environment/survey-environment.hdr",
+      "bytes": 32975,
+      "lodVariants": [],
+      "minimumQuality": null,
+      "provenanceId": "assets/environment/survey-environment.hdr"
+    }
+  ]
+}

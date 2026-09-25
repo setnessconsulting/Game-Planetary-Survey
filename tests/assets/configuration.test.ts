@@ -118,11 +118,16 @@ describe("resolveQualityProfile", () => {
 });
 
 describe("asset manifest contract", () => {
-  it("registers the PS-05 placeholder body pipeline", () => {
+  it("registers the PS-10 production pipeline", () => {
+    // This used to assert the PS-05 placeholder pipeline. PS-10 replaced it
+    // (docs/DECISIONS.md D-34), so the contract asserted here is now that the
+    // manifest describes production art with real provenance ids.
     expect(ASSET_MANIFEST.assets.length).toBeGreaterThan(0);
-    expect(ASSET_MANIFEST.generatedFrom).toContain("PS-05");
-    expect(findAsset("body.placeholder.mesh")?.provenanceId).toMatch(/^generated\./);
-    expect(findAsset("body.placeholder.albedo")?.shippingPath).toContain(".ktx2");
+    expect(ASSET_MANIFEST.generatedFrom).toContain("PS-10");
+    expect(findAsset("body.moon.mesh")?.provenanceId).toBe("assets/bodies/moon-body.glb");
+    // Textures are PNG: the approved dependency set cannot decode KTX2, so
+    // shipping a KTX2 would ship a texture the browser cannot read.
+    expect(findAsset("body.moon.albedo")?.shippingPath).toContain(".png");
     expect(assetsOfKind("mesh").length).toBeGreaterThan(0);
   });
 

@@ -169,8 +169,10 @@ describe("App shell", () => {
     render(<App />);
     expect(screen.getByLabelText(/presentation quality/i)).toBeTruthy();
     expect(screen.getByLabelText(/reduce motion/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /mute sound/i }).getAttribute("aria-pressed")).toBe(
-      "false",
+    // Audio starts muted (docs/ACCESSIBILITY.md A-10), so the control on offer
+    // is the one that turns sound ON.
+    expect(screen.getByRole("button", { name: /unmute sound/i }).getAttribute("aria-pressed")).toBe(
+      "true",
     );
   });
 });
@@ -244,9 +246,23 @@ describe("mission controls", () => {
 
   it("toggles mute and reflects it in the accessible state", () => {
     render(<App />);
-    const mute = screen.getByRole("button", { name: /mute sound/i });
-    fireEvent.click(mute);
+    // Muted by default, so the first press turns sound on.
     const unmute = screen.getByRole("button", { name: /unmute sound/i });
-    expect(unmute.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(unmute);
+    const mute = screen.getByRole("button", { name: /mute sound/i });
+    expect(mute.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(mute);
+    expect(
+      screen.getByRole("button", { name: /unmute sound/i }).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("says sound is optional rather than promising cues that do not exist", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /unmute sound/i }));
+    // The old copy promised nothing ("no audio cues are authored yet"). PS-10
+    // ships real cues, so the status must state the property that actually
+    // matters: nothing you must read is only in the sound.
+    expect(screen.getByRole("status").textContent ?? "").toMatch(/optional|nothing you need to read/i);
   });
 });

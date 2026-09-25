@@ -47,17 +47,25 @@ The repository contains:
   proven with no 3D backend at all, an axe scan at every phase, a software-rendered
   performance baseline written as an artefact, and a build-time gate that every
   shipped mission is playable to a met target along its own authored path
-  (**PS-09** / GAME-373, [`SLICE_QUALIFICATION.md`](SLICE_QUALIFICATION.md)).
+  (**PS-09** / GAME-373, [`SLICE_QUALIFICATION.md`](SLICE_QUALIFICATION.md));
+- the production art and audio pipeline: per-body GLB meshes with LODs, albedo and
+  normal-map textures, a prefiltered HDR environment, calibrated PBR and exposure
+  with each body proven perceptually distinguishable, the renderer reading the
+  motion tokens, a complete audio service with a real cue inventory and mute on by
+  default, and a populated provenance manifest enforced by the asset gate
+  (**PS-10** / GAME-374, [`ART_DIRECTION.md`](ART_DIRECTION.md)).
 
 Authored missions load into the workstation. Learners can select a mission-offered
 instrument, measure with honest unavailable paths, capture evidence, compare worlds
 on a semantic table, draft a claim, cite the evidence behind it, submit it for
 evaluation, read a sourced debrief, and finish the mission — revising in place if
 their citation or reasoning fell short, and going back to measure a world the
-mission's target still needs. Target-age qualification, human visual review, and
-GPU-qualified performance evidence remain outstanding, and guided-mission production
-art belongs to PS-10's asset pipeline. Independent science review remains
-outstanding.
+mission's target still needs. The worlds they survey now carry their own production
+art rather than a shared placeholder sphere, lit by a prefiltered environment and
+calibrated so that no two worlds look alike, with optional sound that is off by
+default and never the only carrier of anything. Target-age qualification, human
+visual review, and GPU-qualified performance evidence remain outstanding.
+Independent science review remains outstanding.
 
 **No independent science review has occurred.** Every value is transcribed from an
 agency source and machine-checked for physical plausibility; none has been checked
@@ -80,7 +88,7 @@ is the material prepared for that review, and
 | GAME-371 | PS-07 — notebook/comparison/a11y equivalents | **complete** | GAME-371; comparison board + a11y through compare; science/visual review not claimed |
 | GAME-372 | PS-08 — mission engine/claim/citation/debrief | **complete** | GAME-372; claim → cite → submit → debrief → complete in the shell; constraints 6–7 closed; science/visual review not claimed |
 | GAME-373 | PS-09 — guided-mission vertical slice | **complete** | GAME-373; guided mission qualified end to end in a real browser; D-40 fixed the unenforced mission target the slice found; science/visual/playtest review not claimed |
-| GAME-374 | PS-10 — visual/motion/audio polish | ready | unblocked by PS-09; owns production art and the asset pipeline |
+| GAME-374 | PS-10 — visual/motion/audio polish | complete | GAME-374; production art for all five bodies, calibrated PBR/HDR, motion conformance, complete audio service with mute, provenance manifest populated; art is original and generated — human visual sign-off not claimed |
 | GAME-375 | PS-11 — independent missions/depth | ready | unblocked by PS-09 |
 | GAME-376 | PS-12 — consolidated qualification | blocked | by PS-10 + PS-11 |
 | GAME-377 | PS-13 — immutable preview candidate | blocked | by PS-12 |
@@ -145,9 +153,13 @@ D-19…D-27; PS-04 added D-28…D-31; PS-DESIGN added D-32 and D-33; PS-05 added
 D-34; PS-08 added D-35…D-39 (mission completion semantics, in-place revision,
 named-credit scoring, progressive hints, and the debrief as a domain artefact);
 PS-09 added D-40 (a met mission target requires the mission's own
-`claimTarget.requiredEvidence` to be cited, not only a supported claim). The outstanding-decision
-audit remains D-18: **no unresolved owner decision can materially change the runtime
-architecture or the v1 learning loop.**
+`claimTarget.requiredEvidence` to be cited, not only a supported claim); PS-10 added
+D-41…D-44 (original generated production art with a generated provenance manifest,
+PNG textures because the approved dependency set cannot decode KTX2, audio on by
+default and every cue carrying a non-audio equivalent, and the renderer reading the
+motion tokens while the atmosphere shell stays a labelled representation). The
+outstanding-decision audit remains D-18: **no unresolved owner decision can
+materially change the runtime architecture or the v1 learning loop.**
 
 D-28 was the one worth flagging. Learner-facing text is the first place in the
 product where a number is *derived* rather than cited, so no provenance gate can

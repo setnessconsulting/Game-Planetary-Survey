@@ -242,6 +242,15 @@ removing every perceptible movement. The easing curve is deliberately *not*
 overridden: shortening a curve is meaningless, which is exactly why motion is
 expressed as a duration token that can be collapsed rather than as a literal.
 
+**The renderer reads these tokens too.** `src/design/motion.ts` is the single place
+a duration is read from, and the camera transition comes from
+`--ps-motion-camera` rather than from a literal in the renderer. That was not
+already true: `cameraModes.ts` carried its own `CAMERA_TRANSITION_MS = 900` while
+this table said 640 ms, so the product had two camera-step durations and editing the
+token would have moved the DOM and left the camera where it was (D-44).
+`tests/design/motionConformance.test.ts` now fails the build if a duration literal
+reappears in any stylesheet or module.
+
 ## 7. Accessibility mapping
 
 Every obligation in `docs/ACCESSIBILITY.md` §2 has a landing place in this
@@ -258,7 +267,7 @@ inventory. Nothing is satisfied by intention.
 | A-7 logical focus order | `keyboard` per surface, in loop order |
 | A-8 reduced motion | `reduced-motion` surface, motion tokens, and the override block |
 | A-9 non-colour-only information | `nonColorEncoding` per surface and `nonColorSignal` per state |
-| A-10 audio alternatives | audio is off by default and carries nothing required; PS-10 owns the cue inventory |
+| A-10 audio alternatives | audio is **off by default** (D-43) and carries nothing required; every cue in `src/audio/cues.ts` declares its `nonAudioEquivalent`, asserted in test |
 | A-11 non-drag alternatives | every interaction is a control; no drag is required anywhere |
 | A-12 200% zoom / reflow | breakpoint contract §5 plus the automated 200% check |
 | A-13 accessible evidence tables | `textualEquivalent` on every visual surface |
@@ -322,12 +331,16 @@ original*. As rules:
 ## 10. What this handoff does not claim
 
 - **No visual approval.** Nothing here has been through a human visual review, and
-  no Figma file exists to compare against. PS-09 qualified the slice technically
-  without closing this; human visual sign-off is PS-14's.
-- **No production art.** No planetary mesh, texture, icon set, or illustration has
-  been produced. PS-05 shipped generated placeholders in the asset manifest — the
-  guided-mission slice deliberately runs on them — and PS-10 owns the production
-  pipeline and the "no placeholders" criterion (D-34).
+  no Figma file exists to compare against. Neither PS-09 (which qualified the
+  slice technically) nor PS-10 (which produced the art) closed this; human visual
+  sign-off is PS-14's.
+- **No production art review.** Production art now exists: PS-10 generated
+  per-body meshes, albedo and normal-map textures, and a prefiltered HDR
+  environment, all original and provenance-recorded
+  ([`ART_DIRECTION.md`](ART_DIRECTION.md)). What does **not** exist is anyone having
+  looked at it and approved it. The art is machine-generated, not
+  artist-commissioned; its calibration and its per-body separation are asserted
+  numerically, and a number is not taste. Human visual sign-off is PS-14's.
 - **No renderer implementation.** The 3D surfaces are specified here, not built by
   this handoff. PS-05 built them against these tokens and this inventory; the
   renderer's real-browser evidence is `tests/e2e/smoke.spec.ts` and, for the slice,

@@ -107,6 +107,8 @@ export async function createRendererController(
   let frames = 0;
   let disposed = false;
   let lastSnapshot: RenderSnapshot | null = null;
+  /** The body whose production art is currently loaded or loading. */
+  let requestedBodyId: string | null = null;
   let currentQuality: QualityProfileId = options.quality;
   let currentReducedMotion = options.reducedMotion;
   let lastCameraMode: CameraMode | null = null;
@@ -155,8 +157,13 @@ export async function createRendererController(
     onEvent?.({ kind: "degraded", reason: note });
   }
 
-  // Progressive first-mission body load.
-  void handles.ensureBodyLoaded(currentQuality).then((loadNotes) => {
+  // Progressive first-mission body load, together with the shared HDR
+  // environment. The body id comes from the latest snapshot, so the art that
+  // loads is the art for the world the learner is actually surveying. It is
+  // null here on a cold start — the renderer boots before any mission exists —
+  // so `applySnapshot` below is what actually triggers the first real load.
+  const initialBodyId: string | null = null;
+  void handles.ensureBodyLoaded(currentQuality, initialBodyId).then((loadNotes) => {
     if (disposed) return;
     for (const note of loadNotes) {
       onEvent?.({ kind: "degraded", reason: note });
@@ -177,6 +184,35 @@ export async function createRendererController(
       if (disposed) return;
       lastSnapshot = snapshot;
       handles.applySnapshot(snapshot, currentReducedMotion);
+
+      // Load the production art for whichever body the learner just selected.
+      //
+      // This has to be driven by the snapshot, not only by start-up. The
+      // renderer initialises before any mission is loaded, so a single
+      // start-up load call always runs with a null body and the scene would sit
+      // on its untextured fallback sphere for the whole session — which is
+      // exactly what happened before this was wired.
+      if (snapshot.bodyId !== requestedBodyId) {
+        requestedBodyId = snapshot.bodyId;
+        void handles
+          .ensureBodyLoaded(currentQuality, snapshot.bodyId)
+          .then((loadNotes) => {
+            if (disposed) return;
+            for (const note of loadNotes) {
+              onEvent?.({ kind: "degraded", reason: note });
+            }
+            // Publish which body's production art is actually on screen. Without
+            // this, a renderer sitting on its untextured fallback sphere is
+            // indistinguishable from one showing a world: the viewport looks
+            // identical either way, and no test can tell. This is the
+            // observable that makes "production art loaded" assertable.
+            options.canvas.dataset["psArtBody"] = handles.loadedBodyId() ?? "";
+            options.canvas.dataset["psArtNotes"] = loadNotes.join(" | ");
+            handles.applySnapshot(lastSnapshot ?? snapshot, currentReducedMotion);
+            writeDiagnostics(true);
+          });
+      }
+
       if (lastCameraMode !== null && lastCameraMode !== snapshot.presentation.cameraMode) {
         // Approach/orbit/inspection transitions are presentation facts the shell may
         // announce; they never carry a measurement.
