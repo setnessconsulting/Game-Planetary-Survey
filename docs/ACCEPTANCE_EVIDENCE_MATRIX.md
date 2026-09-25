@@ -111,13 +111,14 @@ The slice is `survey-001-sizes`. Full record and the outstanding list:
 
 **Not claimed by PS-09:** GPU/device-qualified performance, human visual sign-off, target-age
 playtest, screen-reader experience, science review, and production art (PS-10's pipeline;
-the slice runs on PS-05's generated placeholders).
+the slice ran on PS-05's generated placeholders — superseded by the PS-10 record below,
+where the placeholder claim is retired rather than carried forward).
 
 ---
 
 ### GAME-374 / PS-10 — final visual/motion/audio polish and the asset pipeline
 
-Full record: [`ART_DIRECTION.md`](ART_DIRECTION.md). Decisions D-41…D-44.
+Full record: [`ART_DIRECTION.md`](ART_DIRECTION.md). Decisions D-41…D-46.
 
 | Required evidence | State |
 |---|---|

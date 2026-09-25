@@ -8,7 +8,7 @@ Canonical repository: `setnessconsulting/Game-Planetary-Survey` (`main`)
 
 ## Current phase
 
-**Current phase: guided-mission vertical slice (PS-09) complete on canonical main — the hard gate before content expansion is satisfied.**
+**Current phase: production visual and audio assets (PS-10) complete on canonical main — PS-09 satisfied the hard gate before content expansion, and PS-10 removed the last placeholder from the build.**
 
 The repository contains:
 
