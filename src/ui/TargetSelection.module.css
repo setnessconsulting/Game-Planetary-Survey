@@ -31,3 +31,12 @@
   min-height: var(--ps-control-height);
   padding: 0 var(--ps-space-3);
 }
+
+.properties {
+  margin-top: var(--ps-space-4);
+}
+
+.propertiesHeading {
+  font-size: var(--ps-text-base);
+  margin: 0 0 var(--ps-space-2);
+}

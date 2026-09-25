@@ -12,8 +12,13 @@
  * docs/SCIENCE_MODEL.md §8.
  */
 
-import { ATTRIBUTES, type AttributeId } from "./attributes";
-import { sourcedAttribute, type BodyId, type BodyRecord } from "./bodies";
+import { ATTRIBUTE_IDS, ATTRIBUTES, type AttributeId } from "./attributes";
+import {
+  sourcedAttribute,
+  type BodyId,
+  type BodyRecord,
+  type ReviewStatus,
+} from "./bodies";
 import { quantity, type Quantity } from "./quantities";
 import { deriveSeed, seedToken, type Seed } from "./random";
 
@@ -114,6 +119,83 @@ export type MeasurementOutcome =
       /** Stable identity for this observation, derived only from request + seed. */
       readonly observationId: string;
     };
+
+/**
+ * Take a measurement. Pure and deterministic.
+ *
+ * Determinism proof: identical (instrument, body, attribute, seed) plus identical
+ * register content yields byte-identical output, independent of renderer backend,
+ * quality tier, device, and wall-clock time.
+ */
+/**
+ * A mission-required observation row used to decide which instruments and
+ * attributes the shell should offer for a selected body. Keeps offer filtering
+ * out of React.
+ */
+export interface ObservationOffer {
+  readonly bodyId: BodyId;
+  readonly instrumentId: InstrumentId;
+  readonly attributeId: AttributeId;
+}
+
+/**
+ * Instruments the active mission requires for `body`, in registry order.
+ * An empty list means the mission does not ask for observations on this world.
+ */
+export function offeredInstrumentsFor(
+  observations: readonly ObservationOffer[],
+  body: BodyRecord,
+): readonly InstrumentDefinition[] {
+  const required = new Set(
+    observations.filter((row) => row.bodyId === body.id).map((row) => row.instrumentId),
+  );
+  return INSTRUMENTS.filter((instrument) => required.has(instrument.id));
+}
+
+/**
+ * Attributes the selected instrument may attempt on `body` for this mission.
+ * Mission-required rows come first; other attributes the instrument claims follow
+ * so unsupported attempts can fail honestly instead of being hidden.
+ */
+export function offeredAttributesFor(
+  observations: readonly ObservationOffer[],
+  body: BodyRecord,
+  instrumentId: InstrumentId,
+): readonly AttributeId[] {
+  const instrument = instrumentDefinition(instrumentId);
+  if (!instrument) {
+    return [];
+  }
+
+  const required = observations
+    .filter((row) => row.bodyId === body.id && row.instrumentId === instrumentId)
+    .map((row) => row.attributeId)
+    .filter((attributeId) => instrument.measures.includes(attributeId));
+
+  const seen = new Set<AttributeId>(required);
+  const rest = instrument.measures.filter((attributeId) => !seen.has(attributeId));
+  return [...required, ...rest];
+}
+
+/** Sourced-property availability for the selected world (target-selection gap). */
+export function bodyPropertyAvailability(body: BodyRecord): readonly {
+  readonly attributeId: AttributeId;
+  readonly label: string;
+  readonly available: boolean;
+  readonly reviewStatus: ReviewStatus | null;
+  readonly unit: string | null;
+}[] {
+  return ATTRIBUTE_IDS.map((attributeId) => {
+    const sourced = sourcedAttribute(body, attributeId);
+    return {
+      attributeId,
+      label: ATTRIBUTES[attributeId].label,
+      available: sourced !== undefined,
+      reviewStatus: sourced?.reviewStatus ?? null,
+      unit: sourced?.value.unit ?? null,
+    };
+  });
+}
 
 /**
  * Take a measurement. Pure and deterministic.

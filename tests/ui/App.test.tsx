@@ -63,13 +63,59 @@ describe("App shell", () => {
     );
   });
 
-  it("loads an authored mission and exposes target selection", () => {
+  it("loads an authored mission and runs the survey-to-capture path", () => {
     render(<App />);
     fireEvent.click(screen.getByTestId("load-mission-survey-001-sizes"));
     expect(screen.getByTestId("briefing-title").textContent).toContain("Order the rocky worlds");
     expect(screen.getByTestId("target-selection")).toBeTruthy();
+
     fireEvent.click(screen.getByTestId("select-target-mars"));
     expect(screen.getByTestId("select-target-mars").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("target-properties-table").textContent).toContain("Mean radius");
+    expect(screen.getByTestId("target-properties-table").textContent).toMatch(/Published value available/);
+
+    fireEvent.click(screen.getByTestId("select-instrument-radiusSounder"));
+    expect(screen.getByTestId("select-instrument-radiusSounder").getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+
+    fireEvent.change(screen.getByTestId("measure-attribute"), {
+      target: { value: "meanRadius" },
+    });
+    fireEvent.click(screen.getByTestId("measure-button"));
+    expect(screen.getByTestId("measurement-result").textContent).toContain("km");
+    expect(screen.getByTestId("measurement-review-status").textContent).toContain("unreviewed");
+
+    fireEvent.click(screen.getByTestId("capture-evidence"));
+    expect(screen.queryByTestId("notebook-empty-state")).toBeNull();
+    expect(screen.getByTestId("notebook-table").textContent).toContain("Mars");
+    expect(screen.getByTestId("notebook-table").textContent).toContain("Radius sounder");
+  });
+
+  it("explains an unsupported measurement instead of inventing a value", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("load-mission-survey-001-sizes"));
+    fireEvent.click(screen.getByTestId("select-target-moon"));
+    fireEvent.click(screen.getByTestId("select-instrument-radiusSounder"));
+    fireEvent.change(screen.getByTestId("measure-attribute"), {
+      target: { value: "equatorialRadius" },
+    });
+    fireEvent.click(screen.getByTestId("measure-button"));
+    expect(screen.getByTestId("measurement-unavailable").textContent).toMatch(
+      /No authoritative value/i,
+    );
+    expect(screen.getByTestId("capture-evidence").hasAttribute("disabled")).toBe(true);
+  });
+
+  it("runs measure when Enter submits the observe form", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("load-mission-survey-001-sizes"));
+    fireEvent.click(screen.getByTestId("select-target-venus"));
+    fireEvent.click(screen.getByTestId("select-instrument-radiusSounder"));
+    const form = screen.getByTestId("measure-button").closest("form");
+    expect(form).toBeTruthy();
+    fireEvent.submit(form!);
+    expect(screen.getByTestId("measurement-result")).toBeTruthy();
   });
 
   it("exposes quality, motion, and audio preferences", () => {

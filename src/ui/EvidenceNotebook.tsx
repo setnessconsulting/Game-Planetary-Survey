@@ -8,14 +8,25 @@
  */
 
 import { ATTRIBUTES } from "@/domain/attributes";
+import type { BodyRecord } from "@/domain/bodies";
 import type { EvidenceRecord } from "@/domain/evidence";
+import { instrumentDefinition } from "@/domain/measurement";
 import { formatQuantity } from "@/domain/quantities";
 
 export interface EvidenceNotebookProps {
   readonly records: readonly EvidenceRecord[];
+  readonly bodies: readonly BodyRecord[];
 }
 
-export function EvidenceNotebook({ records }: EvidenceNotebookProps) {
+function bodyLabel(bodies: readonly BodyRecord[], bodyId: string): string {
+  return bodies.find((body) => body.id === bodyId)?.displayName ?? bodyId;
+}
+
+function instrumentLabel(instrumentId: EvidenceRecord["instrumentId"]): string {
+  return instrumentDefinition(instrumentId)?.label ?? instrumentId;
+}
+
+export function EvidenceNotebook({ records, bodies }: EvidenceNotebookProps) {
   return (
     <section aria-labelledby="notebook-heading" data-testid="evidence-notebook">
       <h2 id="notebook-heading">Evidence notebook</h2>
@@ -53,10 +64,10 @@ export function EvidenceNotebook({ records }: EvidenceNotebookProps) {
             </tr>
           ) : (
             records.map((record) => (
-              <tr key={record.id}>
-                <td>{record.bodyId}</td>
+              <tr key={record.id} data-testid={`notebook-row-${record.id}`}>
+                <td>{bodyLabel(bodies, record.bodyId)}</td>
                 <td>{ATTRIBUTES[record.attributeId].label}</td>
-                <td>{record.instrumentId}</td>
+                <td>{instrumentLabel(record.instrumentId)}</td>
                 <td>{formatQuantity(record.reading, record.significantDigits)}</td>
                 <td>
                   <code>{record.sourceId}</code>

@@ -314,6 +314,14 @@ test.describe("planetary survey shell", () => {
     await missionButton.click();
     await expect(missionButton).toBeDisabled();
     await expect(page.getByTestId("briefing-panel")).toContainText("survey-001-sizes");
+
+    await page.getByTestId("select-target-mars").click();
+    await page.getByTestId("select-instrument-radiusSounder").click();
+    await page.getByTestId("measure-button").click();
+    await expect(page.getByTestId("measurement-result")).toBeVisible();
+    await page.getByTestId("capture-evidence").click();
+    await expect(page.getByTestId("notebook-table")).toContainText("Mars");
+    await expect(page.getByTestId("notebook-table")).toContainText("Radius sounder");
   });
 });
 

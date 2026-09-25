@@ -1,0 +1,44 @@
+.lede {
+  color: var(--ps-text-muted);
+  font-size: var(--ps-text-sm);
+  margin-bottom: var(--ps-space-3);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ps-space-3);
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ps-space-1);
+  width: 100%;
+  min-height: var(--ps-touch-min);
+  text-align: left;
+  padding: var(--ps-space-3);
+}
+
+.list li[data-selected="true"] .option {
+  outline: 2px solid var(--ps-accent);
+  outline-offset: 2px;
+}
+
+.label {
+  font-weight: 600;
+}
+
+.purpose {
+  font-size: var(--ps-text-sm);
+  color: var(--ps-text-muted);
+}
+
+.meta {
+  font-size: var(--ps-text-sm);
+  color: var(--ps-text-subtle);
+}

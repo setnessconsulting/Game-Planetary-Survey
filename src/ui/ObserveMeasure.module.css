@@ -1,0 +1,60 @@
+.lede {
+  color: var(--ps-text-muted);
+  font-size: var(--ps-text-sm);
+  margin-bottom: var(--ps-space-3);
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ps-space-3);
+  align-items: flex-end;
+  margin-bottom: var(--ps-space-4);
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ps-space-1);
+  min-width: 12rem;
+}
+
+.control label {
+  font-weight: 600;
+  font-size: var(--ps-text-sm);
+  color: var(--ps-text-muted);
+}
+
+.control select,
+.form button,
+.actions button {
+  min-height: var(--ps-touch-min);
+  padding: 0 var(--ps-space-3);
+}
+
+.reading {
+  font-size: var(--ps-text-sm);
+  margin-bottom: var(--ps-space-3);
+}
+
+.reading dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--ps-space-1) var(--ps-space-3);
+  margin: 0;
+}
+
+.reading dt {
+  color: var(--ps-text-muted);
+  font-weight: 600;
+}
+
+.reading dd {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ps-space-3);
+}

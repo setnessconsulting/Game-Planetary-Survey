@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { ATTRIBUTE_IDS, ATTRIBUTES } from "@/domain/attributes";
-import { INSTRUMENTS, instrumentDefinition, measure } from "@/domain/measurement";
+import {
+  INSTRUMENTS,
+  bodyPropertyAvailability,
+  instrumentDefinition,
+  measure,
+  offeredAttributesFor,
+  offeredInstrumentsFor,
+} from "@/domain/measurement";
 import {
   DEV_FIXTURE_BODIES,
   FIXTURE_ALPHA,
@@ -130,5 +137,51 @@ describe("measure", () => {
         expect(outcome.reading.unit).toBe(ATTRIBUTES[attributeId].canonicalUnit);
       }
     }
+  });
+});
+
+describe("offeredInstrumentsFor / offeredAttributesFor", () => {
+  it("offers only instruments the mission requires for the selected body", () => {
+    const observations = [
+      { bodyId: FIXTURE_ALPHA, instrumentId: "radiusSounder" as const, attributeId: "meanRadius" as const },
+      { bodyId: FIXTURE_BETA, instrumentId: "orbitalRangefinder" as const, attributeId: "orbitalRadius" as const },
+      { bodyId: FIXTURE_ALPHA, instrumentId: "thermalMapper" as const, attributeId: "meanSurfaceTemperature" as const },
+    ];
+    const alpha = bodies.find((body) => body.id === FIXTURE_ALPHA)!;
+    const offered = offeredInstrumentsFor(observations, alpha);
+    expect(offered.map((instrument) => instrument.id)).toEqual(["radiusSounder", "thermalMapper"]);
+  });
+
+  it("lists required attributes first, then the instrument's other claims", () => {
+    const observations = [
+      { bodyId: FIXTURE_ALPHA, instrumentId: "radiusSounder" as const, attributeId: "meanRadius" as const },
+    ];
+    const alpha = bodies.find((body) => body.id === FIXTURE_ALPHA)!;
+    expect(offeredAttributesFor(observations, alpha, "radiusSounder")).toEqual([
+      "meanRadius",
+      "equatorialRadius",
+      "polarRadius",
+    ]);
+  });
+
+  it("returns no instruments when the mission does not ask for this world", () => {
+    const observations = [
+      { bodyId: FIXTURE_BETA, instrumentId: "radiusSounder" as const, attributeId: "meanRadius" as const },
+    ];
+    const alpha = bodies.find((body) => body.id === FIXTURE_ALPHA)!;
+    expect(offeredInstrumentsFor(observations, alpha)).toEqual([]);
+  });
+});
+
+describe("bodyPropertyAvailability", () => {
+  it("marks sourced properties available and others unavailable", () => {
+    const alpha = bodies.find((body) => body.id === FIXTURE_ALPHA)!;
+    const rows = bodyPropertyAvailability(alpha);
+    const radius = rows.find((row) => row.attributeId === "meanRadius");
+    const orbit = rows.find((row) => row.attributeId === "orbitalRadius");
+    expect(radius?.available).toBe(true);
+    expect(radius?.unit).toBe("km");
+    expect(orbit?.available).toBe(false);
+    expect(orbit?.reviewStatus).toBeNull();
   });
 });
