@@ -6,9 +6,9 @@
  * Babylon owns the scene, camera, and frame loop. The only channel between them is
  * typed snapshots, intents, and events (docs/TECHNICAL_DESIGN.md §4).
  *
- * PS-05 loads authored missions into the workstation and drives the planetary
- * renderer through typed `RenderSnapshot`s. Independent science review remains
- * outstanding and is disclosed, not upgraded into "reviewed".
+ * PS-06 wires instrument selection, measurement, and evidence capture on the
+ * PS-05 shell. Independent science review remains outstanding and is disclosed,
+ * not upgraded into "reviewed".
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -34,6 +34,12 @@ import {
 } from "@/content";
 import { projectRenderSnapshot } from "@/domain/renderSnapshot";
 import {
+  offeredAttributesFor,
+  offeredInstrumentsFor,
+  type InstrumentId,
+} from "@/domain/measurement";
+import type { AttributeId } from "@/domain/attributes";
+import {
   createBrowserProbe,
   detectCapabilities,
   webgpuIsConfirmed,
@@ -51,7 +57,9 @@ import type { RendererEvent } from "@/renderer";
 
 import { BriefingPanel } from "./BriefingPanel";
 import { EvidenceNotebook } from "./EvidenceNotebook";
+import { InstrumentSelection } from "./InstrumentSelection";
 import { LoopChecklist } from "./LoopChecklist";
+import { ObserveMeasure } from "./ObserveMeasure";
 import { RendererViewport } from "./RendererViewport";
 import { StatusRegion } from "./StatusRegion";
 import { TargetSelection } from "./TargetSelection";
@@ -119,6 +127,25 @@ export function App() {
     return PLANETARY_BODIES.filter((body) => allowed.has(body.id));
   }, [activeMission]);
 
+  const selectedBody = useMemo(
+    () => PLANETARY_BODIES.find((body) => body.id === snapshot.selectedBodyId) ?? null,
+    [snapshot.selectedBodyId],
+  );
+
+  const offeredInstruments = useMemo(() => {
+    if (!activeMission || !selectedBody) return [];
+    return offeredInstrumentsFor(activeMission.requiredObservations, selectedBody);
+  }, [activeMission, selectedBody]);
+
+  const offeredAttributes = useMemo((): readonly AttributeId[] => {
+    if (!activeMission || !selectedBody || !snapshot.selectedInstrumentId) return [];
+    return offeredAttributesFor(
+      activeMission.requiredObservations,
+      selectedBody,
+      snapshot.selectedInstrumentId,
+    );
+  }, [activeMission, selectedBody, snapshot.selectedInstrumentId]);
+
   const targetSelectionEnabled =
     snapshot.phase === "briefing" ||
     snapshot.phase === "targetSelection" ||
@@ -126,6 +153,27 @@ export function App() {
     snapshot.phase === "observing" ||
     snapshot.phase === "evidenceCapture" ||
     snapshot.phase === "comparison";
+
+  const instrumentSelectionEnabled =
+    snapshot.missionId !== null &&
+    snapshot.selectedBodyId !== null &&
+    (snapshot.phase === "targetSelection" ||
+      snapshot.phase === "instrumentSelection" ||
+      snapshot.phase === "observing" ||
+      snapshot.phase === "comparison" ||
+      snapshot.phase === "claimDrafting");
+
+  const measureEnabled =
+    snapshot.selectedBodyId !== null &&
+    snapshot.selectedInstrumentId !== null &&
+    (snapshot.phase === "instrumentSelection" ||
+      snapshot.phase === "observing" ||
+      snapshot.phase === "comparison" ||
+      snapshot.phase === "claimDrafting");
+
+  const captureEnabled =
+    snapshot.lastMeasurement?.kind === "measured" &&
+    (snapshot.phase === "observing" || snapshot.phase === "evidenceCapture");
 
   useEffect(() => {
     setAnnouncement(message);
@@ -213,9 +261,10 @@ export function App() {
             back up. This is a survey, not a fact quiz.
           </p>
           <p className={styles.foundationNote} data-testid="foundation-note">
-            Renderer foundation build (PS-05). Planetary values are cited in the per-field
-            source register. Independent science review is still outstanding, so content is
-            shown as unreviewed rather than presented as settled. Final visual quality is not
+            Renderer foundation build (PS-05) with instrument and evidence capture
+            (PS-06). Planetary values are cited in the per-field source register.
+            Independent science review is still outstanding, so content is shown as
+            unreviewed rather than presented as settled. Final visual quality is not
             claimed.
           </p>
         </div>
@@ -319,8 +368,24 @@ export function App() {
               enabled={targetSelectionEnabled && snapshot.missionId !== null}
               onSelect={(bodyId) => dispatch({ kind: "selectTarget", bodyId })}
             />
+            <InstrumentSelection
+              instruments={offeredInstruments}
+              selectedInstrumentId={snapshot.selectedInstrumentId}
+              enabled={instrumentSelectionEnabled}
+              onSelect={(instrumentId: InstrumentId) =>
+                dispatch({ kind: "selectInstrument", instrumentId })
+              }
+            />
+            <ObserveMeasure
+              attributeIds={offeredAttributes}
+              lastMeasurement={snapshot.lastMeasurement}
+              measureEnabled={measureEnabled}
+              captureEnabled={captureEnabled}
+              onMeasure={(attributeId) => dispatch({ kind: "measure", attributeId })}
+              onCapture={() => dispatch({ kind: "captureEvidence" })}
+            />
             <LoopChecklist steps={loopStatus} />
-            <EvidenceNotebook records={snapshot.evidence} />
+            <EvidenceNotebook records={snapshot.evidence} bodies={PLANETARY_BODIES} />
           </div>
 
           <div className={styles.column}>

@@ -8,7 +8,7 @@ Canonical repository: `setnessconsulting/Game-Planetary-Survey` (`main`)
 
 ## Current phase
 
-**Current phase: renderer foundation (PS-05) complete on canonical main.**
+**Current phase: instruments and evidence capture (PS-06) complete on canonical main.**
 
 The repository contains:
 
@@ -32,11 +32,14 @@ The repository contains:
   [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md));
 - the Babylon planetary renderer foundation: GLB/KTX2 asset pipeline, camera and
   scale modes, typed render contract, and authored-mission load in the shell
-  (**PS-05** / GAME-369).
+  (**PS-05** / GAME-369);
+- instrument selection, observe/measure, and evidence capture wired through the
+  shell on the existing domain contracts (**PS-06** / GAME-370).
 
-Authored missions load into the workstation. Instruments, claim completion, and
-production art remain later stories. Independent science review remains
-outstanding.
+Authored missions load into the workstation. Learners can select a mission-offered
+instrument, measure with honest unavailable paths, and capture evidence into the
+notebook. Comparison, claim completion, and production art remain later stories.
+Independent science review remains outstanding.
 
 **No independent science review has occurred.** Every value is transcribed from an
 agency source and machine-checked for physical plausibility; none has been checked
@@ -55,8 +58,8 @@ is the material prepared for that review, and
 | GAME-367 | PS-DESIGN — design system + preproduction | **complete** (in-repo equivalent; no Figma file — see constraint 3) | tokens, surfaces, breakpoints, motion, accessibility mapping |
 | GAME-368 | PS-04 — canonical bodies/missions | **implemented; science review outstanding** | content authored and sourced; see constraint 1 |
 | GAME-369 | PS-05 — Babylon renderer foundation | **complete** | GAME-369; real-browser renderer evidence; science/visual review not claimed |
-| GAME-370 | PS-06 — instruments/evidence capture | blocked | by PS-05 Done; still waits on instruments |
-| GAME-371 | PS-07 — notebook/comparison/a11y equivalents | blocked | by PS-06 |
+| GAME-370 | PS-06 — instruments/evidence capture | **complete** | GAME-370; instrument → measure → capture in shell; science review not claimed |
+| GAME-371 | PS-07 — notebook/comparison/a11y equivalents | blocked | by PS-06 Done → unblocked for comparison board work |
 | GAME-372 | PS-08 — mission engine/scoring/debrief | blocked | by PS-04 + PS-07 |
 | GAME-373 | PS-09 — guided-mission vertical slice | blocked | hard gate before content expansion |
 | GAME-374 | PS-10 — visual/motion/audio polish | blocked | by PS-09 |

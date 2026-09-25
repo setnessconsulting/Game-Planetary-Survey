@@ -176,7 +176,7 @@ export const SURFACES: readonly SurfaceSpec[] = [
     motionTokens: [],
     maturity: "partial",
     knownGap:
-      "Authored missions load from the shell (PS-05). Instrument selection and measurement actions on a chosen target remain PS-06. Independent science review of the loaded content remains outstanding (GAME-368).",
+      "Authored missions load from the shell (PS-05). Instrument selection, measure, and capture are wired (PS-06). Independent science review of the loaded content remains outstanding (GAME-368).",
   },
 
   {
@@ -225,9 +225,8 @@ export const SURFACES: readonly SurfaceSpec[] = [
     keyboard:
       "Tab reaches each target; space or enter selects. Focus order follows the table's reading order, not the viewport's.",
     motionTokens: ["--ps-motion-fast", "--ps-motion-base"],
-    maturity: "partial",
-    knownGap:
-      "Renderer and target table are implemented (PS-05). Per-property availability detail on the selected world and instrument/measurement actions remain PS-06.",
+    maturity: "implemented",
+    knownGap: null,
   },
 
   {
@@ -272,8 +271,8 @@ export const SURFACES: readonly SurfaceSpec[] = [
     touchTarget: "Instrument options are at least --ps-touch-min tall.",
     keyboard: "Arrow keys move within the group; space or enter selects. Focus returns to the group after a measurement.",
     motionTokens: ["--ps-motion-fast"],
-    maturity: "specified",
-    knownGap: "Implementation belongs to PS-06.",
+    maturity: "implemented",
+    knownGap: null,
   },
 
   {
@@ -321,8 +320,8 @@ export const SURFACES: readonly SurfaceSpec[] = [
     touchTarget: "The measure control is at least --ps-touch-min tall, and is never drag-only (A-11).",
     keyboard: "Enter runs the selected instrument. The reading is announced through the live region, not read from the canvas.",
     motionTokens: ["--ps-motion-fast", "--ps-motion-base", "--ps-motion-camera"],
-    maturity: "specified",
-    knownGap: "Implementation belongs to PS-06, on the renderer foundation from PS-05.",
+    maturity: "implemented",
+    knownGap: null,
   },
 
   {
