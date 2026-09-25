@@ -14,4 +14,5 @@ export {
   type RendererEvent,
 } from "./controller";
 export { RendererEngineError, type EngineInitResult } from "./engine";
-export { applyQuality, buildScene, type SceneHandles } from "./scene";
+export { applyQuality, buildScene, neutralizeCanvasTabStop, type SceneHandles } from "./scene";
+export { applyCameraMode, poseFor, resetCameraToMode, CAMERA_TRANSITION_MS } from "./cameraModes";

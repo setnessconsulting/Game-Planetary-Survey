@@ -176,7 +176,7 @@ export const SURFACES: readonly SurfaceSpec[] = [
     motionTokens: [],
     maturity: "partial",
     knownGap:
-      "The authored missions of register version ps-04.0.0 are not loadable from the shell yet; loading real mission content is PS-05 onward. The surface, its states, and its boundaries-rendering rule are specified here and the no-mission state is implemented.",
+      "Authored missions load from the shell (PS-05). Instrument selection and measurement actions on a chosen target remain PS-06. Independent science review of the loaded content remains outstanding (GAME-368).",
   },
 
   {
@@ -225,9 +225,9 @@ export const SURFACES: readonly SurfaceSpec[] = [
     keyboard:
       "Tab reaches each target; space or enter selects. Focus order follows the table's reading order, not the viewport's.",
     motionTokens: ["--ps-motion-fast", "--ps-motion-base"],
-    maturity: "specified",
+    maturity: "partial",
     knownGap:
-      "Implementation belongs to PS-05 (renderer and viewport) and PS-06 (instrument and measurement actions). Only the foundation shell's placeholder exists today.",
+      "Renderer and target table are implemented (PS-05). Per-property availability detail on the selected world and instrument/measurement actions remain PS-06.",
   },
 
   {

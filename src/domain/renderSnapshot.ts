@@ -17,6 +17,11 @@ import { ATTRIBUTES, type AttributeId } from "./attributes";
 import type { BodyId, BodyRecord } from "./bodies";
 import type { InstrumentId } from "./measurement";
 import type { MissionPhase, MissionSnapshot } from "./mission";
+import {
+  applyPresentationDeclaration,
+  findDeclaration,
+  type PresentationScaleDeclaration,
+} from "./presentation";
 
 /**
  * How the camera/scene should frame things.
@@ -28,8 +33,14 @@ import type { MissionPhase, MissionSnapshot } from "./mission";
  */
 export type ScaleMode = "comparativeNonLiteral" | "bodyRelative";
 
+/**
+ * Curated camera preset for the planetary navigation pipeline
+ * (docs/RENDERING_QUALITY_STRATEGY.md §2). Presentation only — never a value.
+ */
+export type CameraMode = "systemComparison" | "approach" | "orbit" | "inspection";
+
 export interface RenderPresentation {
-  readonly mode: "reference" | "body";
+  readonly mode: "reference" | "body" | "systemComparison";
   readonly scaleMode: ScaleMode;
   /**
    * Presentation-only scale factor. It scales the drawing, never a displayed
@@ -39,6 +50,9 @@ export interface RenderPresentation {
   readonly scaleFactor: number;
   /** Always shown when the scale is not literal. */
   readonly scaleNotice: string;
+  /** SIM id when a declaration licensed this view; otherwise null. */
+  readonly declarationId: string | null;
+  readonly cameraMode: CameraMode;
 }
 
 export interface RenderSnapshot {
@@ -54,11 +68,16 @@ export interface RenderSnapshot {
   readonly phase: MissionPhase;
 }
 
-const COMPARATIVE_NOTICE =
+const SYSTEM_COMPARISON_REPRESENTATION = "system-comparison";
+
+const COMPARATIVE_FALLBACK_NOTICE =
   "This comparison view is not drawn to literal scale. The numbers in the notebook are the measurements.";
 
 const REFERENCE_NOTICE =
   "Reference view: no mission body is loaded, so nothing here is a measurement.";
+
+const BODY_RELATIVE_NOTICE =
+  "Survey view: the world is drawn at a body-relative presentation scale. The numbers in the notebook are the measurements.";
 
 /** Monotonic approach pacing per phase. Choreography, never information. */
 const APPROACH_PROGRESS: Readonly<Record<MissionPhase, number>> = {
@@ -75,15 +94,43 @@ const APPROACH_PROGRESS: Readonly<Record<MissionPhase, number>> = {
   complete: 1,
 };
 
+/** Phases that use the non-literal system comparison view when a declaration exists. */
+const SYSTEM_COMPARISON_PHASES: ReadonlySet<MissionPhase> = new Set([
+  "briefing",
+  "targetSelection",
+  "comparison",
+]);
+
+function cameraModeFor(
+  scaleMode: ScaleMode,
+  approachProgress: number,
+  phase: MissionPhase,
+): CameraMode {
+  if (scaleMode === "comparativeNonLiteral") {
+    return "systemComparison";
+  }
+  if (phase === "observing" || phase === "evidenceCapture" || approachProgress >= 0.75) {
+    return "inspection";
+  }
+  if (approachProgress >= 0.4) {
+    return "orbit";
+  }
+  return "approach";
+}
+
 /**
  * Project the mission state into renderer-facing data.
  *
  * Pure and total: it never throws, and an unknown body id degrades to the honest
  * reference presentation rather than a fabricated body.
+ *
+ * Declarations are passed in rather than imported from content so the domain
+ * stays a pure leaf (docs/TECHNICAL_DESIGN.md §2).
  */
 export function projectRenderSnapshot(
   snapshot: MissionSnapshot,
   bodies: readonly BodyRecord[],
+  declarations: readonly PresentationScaleDeclaration[] = [],
 ): RenderSnapshot {
   const approachProgress = APPROACH_PROGRESS[snapshot.phase];
   const body = snapshot.selectedBodyId
@@ -91,6 +138,31 @@ export function projectRenderSnapshot(
     : undefined;
 
   if (!body) {
+    const useSystemComparison = SYSTEM_COMPARISON_PHASES.has(snapshot.phase);
+    if (useSystemComparison) {
+      const applied = applyPresentationDeclaration(
+        findDeclaration(declarations, SYSTEM_COMPARISON_REPRESENTATION),
+        { scaleFactor: 0.0001, scaleNotice: COMPARATIVE_FALLBACK_NOTICE },
+      );
+      return {
+        bodyId: null,
+        displayName: null,
+        presentation: {
+          mode: "systemComparison",
+          scaleMode: "comparativeNonLiteral",
+          scaleFactor: applied.scaleFactor,
+          scaleNotice: applied.scaleNotice,
+          declarationId: applied.declarationId,
+          cameraMode: "systemComparison",
+        },
+        instrumentId: snapshot.selectedInstrumentId,
+        bodyAvailableAttributes: [],
+        observationActive: false,
+        approachProgress,
+        phase: snapshot.phase,
+      };
+    }
+
     return {
       bodyId: null,
       displayName: null,
@@ -99,6 +171,8 @@ export function projectRenderSnapshot(
         scaleMode: "bodyRelative",
         scaleFactor: 1,
         scaleNotice: REFERENCE_NOTICE,
+        declarationId: null,
+        cameraMode: "orbit",
       },
       instrumentId: snapshot.selectedInstrumentId,
       bodyAvailableAttributes: [],
@@ -108,14 +182,43 @@ export function projectRenderSnapshot(
     };
   }
 
+  const useComparative =
+    SYSTEM_COMPARISON_PHASES.has(snapshot.phase) && snapshot.phase === "comparison";
+  if (useComparative) {
+    const applied = applyPresentationDeclaration(
+      findDeclaration(declarations, SYSTEM_COMPARISON_REPRESENTATION),
+      { scaleFactor: 0.0001, scaleNotice: COMPARATIVE_FALLBACK_NOTICE },
+    );
+    return {
+      bodyId: body.id,
+      displayName: body.displayName,
+      presentation: {
+        mode: "systemComparison",
+        scaleMode: "comparativeNonLiteral",
+        scaleFactor: applied.scaleFactor,
+        scaleNotice: applied.scaleNotice,
+        declarationId: applied.declarationId,
+        cameraMode: "systemComparison",
+      },
+      instrumentId: snapshot.selectedInstrumentId,
+      bodyAvailableAttributes: availableAttributes(body),
+      observationActive: false,
+      approachProgress,
+      phase: snapshot.phase,
+    };
+  }
+
+  const scaleMode: ScaleMode = "bodyRelative";
   return {
     bodyId: body.id,
     displayName: body.displayName,
     presentation: {
       mode: "body",
-      scaleMode: "bodyRelative",
+      scaleMode,
       scaleFactor: 1,
-      scaleNotice: COMPARATIVE_NOTICE,
+      scaleNotice: BODY_RELATIVE_NOTICE,
+      declarationId: null,
+      cameraMode: cameraModeFor(scaleMode, approachProgress, snapshot.phase),
     },
     instrumentId: snapshot.selectedInstrumentId,
     // Attribute *ids* only: the renderer may show that an atmosphere measurement

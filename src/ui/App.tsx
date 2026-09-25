@@ -6,17 +6,9 @@
  * Babylon owns the scene, camera, and frame loop. The only channel between them is
  * typed snapshots, intents, and events (docs/TECHNICAL_DESIGN.md §4).
  *
- * PS-04 authored the catalogue: five worlds and four missions, every displayed
- * value cited in the source register. This shell still does not *load* one —
- * wiring the authored missions into the workstation is a later gate — so what it
- * proves is that the seams, the boundaries, the accessibility routes, and the
- * honest failure paths are real.
- *
- * The shell reports two different things about that content, and the difference is
- * deliberate. `catalogueIsPopulated()` says content exists; it is true.
- * `catalogueIsScienceReviewed()` says a human signed the science off; it is false.
- * Collapsing those into one "ready" flag would let a build that has sourced values
- * look like a build that has reviewed ones.
+ * PS-05 loads authored missions into the workstation and drives the planetary
+ * renderer through typed `RenderSnapshot`s. Independent science review remains
+ * outstanding and is disclosed, not upgraded into "reviewed".
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -31,8 +23,14 @@ import { createAudioService, type AudioService } from "@/audio";
 import {
   MISSIONS,
   PLANETARY_BODIES,
+  PRESENTATION_DECLARATIONS,
+  GUIDED_MISSION_ID,
+  DISTANCE_MISSION_ID,
+  RELIEF_MISSION_ID,
+  VARIANT_MISSION_ID,
   catalogueIsPopulated,
   catalogueIsScienceReviewed,
+  findMission,
 } from "@/content";
 import { projectRenderSnapshot } from "@/domain/renderSnapshot";
 import {
@@ -56,6 +54,7 @@ import { EvidenceNotebook } from "./EvidenceNotebook";
 import { LoopChecklist } from "./LoopChecklist";
 import { RendererViewport } from "./RendererViewport";
 import { StatusRegion } from "./StatusRegion";
+import { TargetSelection } from "./TargetSelection";
 import { deriveLoopStatus } from "./loopSteps";
 import { useMission } from "./useMission";
 import styles from "./App.module.css";
@@ -65,23 +64,26 @@ const QUALITY_PREFERENCE_OPTIONS: readonly (QualityProfileId | "auto")[] = [
   ...QUALITY_PROFILE_IDS,
 ];
 
+const LOADABLE_MISSIONS = [
+  GUIDED_MISSION_ID,
+  RELIEF_MISSION_ID,
+  DISTANCE_MISSION_ID,
+  VARIANT_MISSION_ID,
+] as const;
+
 export function App() {
   const [capabilities] = useState<CapabilityReport>(() =>
     detectCapabilities(createBrowserProbe()),
   );
-  //
-  // The capability probe can only REQUEST a backend; only the renderer can confirm
-  // which one actually runs. This is the single source of truth for "what is the
-  // learner's browser really using", and quality selection is gated on it rather
-  // than on the probe's optimistic request.
   const [backendInUse, setBackendInUse] = useState<RendererBackend | null>(null);
   const [deviceSignals] = useState<DeviceSignals>(() => readDeviceSignals());
   const [qualityPreference, setQualityPreference] = useState<QualityProfileId | "auto">("auto");
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => prefersReducedMotion());
   const [muted, setMuted] = useState(false);
   const [announcement, setAnnouncement] = useState(
-    "Survey workstation ready. No mission content is loaded yet.",
+    "Survey workstation ready. Load a mission to begin.",
   );
+  const resetCameraRef = useRef<(() => void) | null>(null);
 
   const audioRef = useRef<AudioService | null>(null);
   if (audioRef.current === null) {
@@ -104,20 +106,31 @@ export function App() {
   const { snapshot, message, dispatch } = mission;
 
   const renderSnapshot = useMemo(
-    () => projectRenderSnapshot(snapshot, PLANETARY_BODIES),
+    () => projectRenderSnapshot(snapshot, PLANETARY_BODIES, PRESENTATION_DECLARATIONS),
     [snapshot],
   );
   const loopStatus = useMemo(() => deriveLoopStatus(snapshot), [snapshot]);
   const populated = catalogueIsPopulated();
   const scienceReviewed = catalogueIsScienceReviewed();
+  const activeMission = snapshot.missionId ? findMission(snapshot.missionId) : undefined;
+  const selectableBodies = useMemo(() => {
+    if (!activeMission) return PLANETARY_BODIES;
+    const allowed = new Set(activeMission.targetBodyIds);
+    return PLANETARY_BODIES.filter((body) => allowed.has(body.id));
+  }, [activeMission]);
 
-  // Announce domain outcomes; the live region is the single non-visual channel.
+  const targetSelectionEnabled =
+    snapshot.phase === "briefing" ||
+    snapshot.phase === "targetSelection" ||
+    snapshot.phase === "instrumentSelection" ||
+    snapshot.phase === "observing" ||
+    snapshot.phase === "evidenceCapture" ||
+    snapshot.phase === "comparison";
+
   useEffect(() => {
     setAnnouncement(message);
   }, [message]);
 
-  // Audio is a seam: pause when the tab is hidden, resume when it returns. The
-  // game works fully with no audio at all (docs/TECHNICAL_DESIGN.md §9).
   useEffect(() => {
     return observeVisibility((hidden) => {
       if (hidden) audio.suspend();
@@ -135,15 +148,23 @@ export function App() {
         setBackendInUse(event.backend);
         setAnnouncement(`3D survey view running on ${event.backend.toUpperCase()}.`);
         return;
+      case "sceneReady":
+        // Do not clobber a more specific degraded/fallback explanation (for
+        // example the WebGPU-unusable → WebGL2 note the smoke suite asserts).
+        return;
+      case "targetApproached":
+        setAnnouncement(`Camera set to ${event.cameraMode} framing.`);
+        return;
       case "degraded":
-        setAnnouncement(event.reason);
+        setAnnouncement((current) => {
+          // Prefer keeping a backend-fallback explanation over later asset notes.
+          if (/webgpu/i.test(current) && !/webgpu/i.test(event.reason)) {
+            return current;
+          }
+          return event.reason;
+        });
         return;
       case "failed":
-        // Nothing is rendering, so nothing is "in use" — even though the renderer can
-        // say which backend it tried and lost. Reporting the attempted backend here
-        // would put a backend name in the System check next to a blank viewport, which
-        // is the same class of lie as reporting the probe's request as fact. The
-        // attempt itself is named in the explanation the learner is given.
         setBackendInUse("unavailable");
         setAnnouncement(event.reason);
         return;
@@ -159,28 +180,26 @@ export function App() {
     setMuted(next);
     audio.setMuted(next);
     if (!next) {
-      // A user gesture is the only legitimate moment to start audio.
       void audio.unlock();
     }
-    setAnnouncement(next ? "Sound muted." : "Sound unmuted. No audio cues are authored yet — this control exercises the audio seam.");
+    setAnnouncement(
+      next
+        ? "Sound muted."
+        : "Sound unmuted. No audio cues are authored yet — this control exercises the audio seam.",
+    );
+  };
+
+  const loadMission = (missionId: string): void => {
+    const definition = findMission(missionId);
+    dispatch({
+      kind: "loadMission",
+      missionId,
+      seed: definition?.seedBase ?? 0,
+    });
   };
 
   return (
     <>
-      {/*
-        `tabindex={0}` is deliberate and load-bearing.
-
-        WebKit excludes plain links from sequential focus navigation, following the
-        macOS convention where Tab visits form controls but not links. Without an
-        explicit tabindex, a keyboard-only Safari learner pressing Tab skips straight
-        past this link to the quality selector — the bypass mechanism (WCAG 2.4.1)
-        would simply not exist for them. Verified in a real WebKit run: the link is
-        skipped without it and is the first tab stop with it.
-
-        It is `0`, never a positive value: a positive tabindex would reorder focus
-        against DOM order. In Chromium and Firefox this matches the link's natural
-        focusability, so nothing changes there.
-      */}
       <a className="ps-skip-link" href="#main" tabIndex={0}>
         Skip to the survey workstation
       </a>
@@ -194,11 +213,10 @@ export function App() {
             back up. This is a survey, not a fact quiz.
           </p>
           <p className={styles.foundationNote} data-testid="foundation-note">
-            Source-register build (PS-04). The product, science, architecture,
-            accessibility, performance, and release contracts are frozen in <code>docs/</code>,
-            and every planetary value is cited in the per-field source register. Independent
-            science review of that content is still outstanding, so it is shown as unreviewed
-            rather than presented as settled.
+            Renderer foundation build (PS-05). Planetary values are cited in the per-field
+            source register. Independent science review is still outstanding, so content is
+            shown as unreviewed rather than presented as settled. Final visual quality is not
+            claimed.
           </p>
         </div>
       </header>
@@ -225,13 +243,13 @@ export function App() {
                   >
                     {QUALITY_PREFERENCE_OPTIONS.map((option) => (
                       <option key={option} value={option}>
-                        {option === "auto" ? `Auto (${resolvedQuality})` : qualityProfile(option).label}
+                        {option === "auto"
+                          ? `Auto (${resolvedQuality})`
+                          : qualityProfile(option).label}
                       </option>
                     ))}
                   </select>
-                  <p className={styles.hint}>
-                    {qualityProfile(resolvedQuality).description}
-                  </p>
+                  <p className={styles.hint}>{qualityProfile(resolvedQuality).description}</p>
                 </div>
 
                 <div className={styles.control}>
@@ -255,11 +273,7 @@ export function App() {
 
               <p className={styles.hint} data-testid="content-status">
                 {!populated
-                  ? "Catalogue empty: " +
-                    PLANETARY_BODIES.length +
-                    " bodies, " +
-                    MISSIONS.length +
-                    " missions. Nothing is measured with an unsourced value."
+                  ? "Catalogue empty."
                   : `${PLANETARY_BODIES.length} worlds and ${MISSIONS.length} missions are authored, every value cited in the source register. ` +
                     (scienceReviewed
                       ? "Independent science review is complete."
@@ -267,26 +281,44 @@ export function App() {
               </p>
 
               <div className={styles.actions}>
+                {LOADABLE_MISSIONS.map((missionId) => {
+                  const definition = findMission(missionId);
+                  return (
+                    <button
+                      key={missionId}
+                      type="button"
+                      data-testid={`load-mission-${missionId}`}
+                      onClick={() => loadMission(missionId)}
+                      disabled={snapshot.missionId !== null}
+                    >
+                      {definition ? `Open: ${definition.title}` : missionId}
+                    </button>
+                  );
+                })}
                 <button
                   type="button"
-                  onClick={() => dispatch({ kind: "loadMission", missionId: "foundation-briefing", seed: 0 })}
-                  disabled={snapshot.missionId !== null}
+                  onClick={() => dispatch({ kind: "beginBriefing" })}
+                  disabled={snapshot.phase !== "briefing" && snapshot.phase !== "unloaded"}
                 >
-                  Open the foundation briefing
-                </button>
-                <button type="button" onClick={() => dispatch({ kind: "beginBriefing" })}>
                   Continue to target selection
                 </button>
+                <button
+                  type="button"
+                  data-testid="reset-mission"
+                  onClick={() => dispatch({ kind: "reset" })}
+                >
+                  Reset mission
+                </button>
               </div>
-              <p className={styles.hint}>
-                The foundation briefing contains no scientific content. The authored missions
-                are not loadable from this shell yet, so this briefing is what keeps the
-                mission loop, the notebook, and the announcement path exercisable in the
-                meantime.
-              </p>
             </section>
 
-            <BriefingPanel missionId={snapshot.missionId} />
+            <BriefingPanel missionId={snapshot.missionId} scienceReviewed={scienceReviewed} />
+            <TargetSelection
+              bodies={selectableBodies}
+              selectedBodyId={snapshot.selectedBodyId}
+              enabled={targetSelectionEnabled && snapshot.missionId !== null}
+              onSelect={(bodyId) => dispatch({ kind: "selectTarget", bodyId })}
+            />
             <LoopChecklist steps={loopStatus} />
             <EvidenceNotebook records={snapshot.evidence} />
           </div>
@@ -298,17 +330,27 @@ export function App() {
               reducedMotion={reducedMotion}
               snapshot={renderSnapshot}
               onEvent={handleRendererEvent}
+              onControllerReady={(controller) => {
+                resetCameraRef.current = () => controller.resetCamera();
+              }}
             />
+
+            <div className={styles.actions}>
+              <button
+                type="button"
+                data-testid="reset-camera"
+                onClick={() => {
+                  resetCameraRef.current?.();
+                  setAnnouncement("Camera reset to the current survey framing.");
+                }}
+              >
+                Reset camera
+              </button>
+            </div>
 
             <section aria-labelledby="diag-heading" data-testid="diagnostics">
               <h2 id="diag-heading">System check</h2>
               <dl className={styles.diagnostics}>
-                {/*
-                  "In use" is reported from the renderer, which is the only part of
-                  the app that can confirm a usable adapter. "Requested" is the
-                  probe's advisory plan. Showing one as the other is how a browser
-                  ends up claiming WebGPU while rendering on WebGL2.
-                */}
                 <dt>Renderer backend in use</dt>
                 <dd data-testid="diag-backend">{backendInUse ?? "not started"}</dd>
                 <dt>Renderer backend requested</dt>
@@ -325,6 +367,10 @@ export function App() {
                 </dd>
                 <dt>Resolved quality profile</dt>
                 <dd data-testid="diag-quality">{resolvedQuality}</dd>
+                <dt>Camera mode</dt>
+                <dd data-testid="diag-camera">{renderSnapshot.presentation.cameraMode}</dd>
+                <dt>Scale mode</dt>
+                <dd data-testid="diag-scale">{renderSnapshot.presentation.scaleMode}</dd>
                 <dt>Device signals</dt>
                 <dd>
                   {deviceSignals.hardwareConcurrency ?? "unknown"} threads ·{" "}
@@ -333,10 +379,7 @@ export function App() {
               </dl>
               <p className={styles.hint}>
                 Gameplay, measurements, evidence, and claims are identical on WebGL2 and
-                WebGPU, and at every quality tier. Only presentation cost changes. The
-                highest presentation tier is only offered once WebGPU is confirmed in
-                use; a browser that merely exposes the WebGPU API still gets the
-                WebGL2-baseline tier.
+                WebGPU, and at every quality tier. Only presentation cost changes.
               </p>
             </section>
 

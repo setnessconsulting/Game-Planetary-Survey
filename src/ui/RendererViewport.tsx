@@ -38,21 +38,21 @@ export interface RendererViewportProps {
   readonly reducedMotion: boolean;
   readonly snapshot: RenderSnapshot;
   readonly onEvent?: (event: RendererEvent) => void;
+  readonly onControllerReady?: (controller: RendererController) => void;
 }
 
 export function RendererViewport(props: RendererViewportProps) {
-  const { capabilities, quality, reducedMotion, snapshot, onEvent } = props;
+  const { capabilities, quality, reducedMotion, snapshot, onEvent, onControllerReady } = props;
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const diagnosticsRef = useRef<HTMLParagraphElement | null>(null);
   const controllerRef = useRef<RendererController | null>(null);
 
-  // Refs keep the creation effect independent of values that change often, so a
-  // quality change never rebuilds the engine.
   const qualityRef = useRef(quality);
   const motionRef = useRef(reducedMotion);
   const onEventRef = useRef(onEvent);
   const snapshotRef = useRef(snapshot);
+  const onControllerReadyRef = useRef(onControllerReady);
 
   const [state, setState] = useState<ViewportState>({ kind: "idle" });
 
@@ -61,6 +61,7 @@ export function RendererViewport(props: RendererViewportProps) {
     motionRef.current = reducedMotion;
     onEventRef.current = onEvent;
     snapshotRef.current = snapshot;
+    onControllerReadyRef.current = onControllerReady;
   });
 
   const emit = useCallback((event: RendererEvent): void => {
@@ -84,7 +85,6 @@ export function RendererViewport(props: RendererViewportProps) {
 
     void (async () => {
       try {
-        // Lazy: this is the only place the renderer is pulled in.
         const { createRendererController } = await import("@/renderer");
         const created = await createRendererController({
           canvas,
@@ -102,6 +102,7 @@ export function RendererViewport(props: RendererViewportProps) {
         controllerRef.current = created;
         created.setQuality(qualityRef.current, motionRef.current);
         created.applySnapshot(snapshotRef.current);
+        onControllerReadyRef.current?.(created);
         setState({ kind: "ready", backend: created.backend });
       } catch (error) {
         if (disposed) return;
@@ -120,7 +121,6 @@ export function RendererViewport(props: RendererViewportProps) {
     };
   }, [capabilities, emit]);
 
-  // Semantic changes only. No per-frame React work happens anywhere in this file.
   useEffect(() => {
     controllerRef.current?.applySnapshot(snapshot);
   }, [snapshot]);
@@ -136,9 +136,13 @@ export function RendererViewport(props: RendererViewportProps) {
       aria-labelledby="viewport-heading"
       data-testid="renderer-viewport"
       data-viewport-state={state.kind}
+      data-scale-mode={snapshot.presentation.scaleMode}
+      data-camera-mode={snapshot.presentation.cameraMode}
     >
       <h2 id="viewport-heading">Survey view</h2>
-      <p className={styles.notice}>{snapshot.presentation.scaleNotice}</p>
+      <p className={styles.notice} data-testid="scale-notice">
+        {snapshot.presentation.scaleNotice}
+      </p>
 
       <div className={styles.stage}>
         <canvas
@@ -158,11 +162,6 @@ export function RendererViewport(props: RendererViewportProps) {
         {statusText}
       </p>
 
-      {/*
-        Frame diagnostics: presentation-only facts written by the renderer, not by
-        React. This is what makes "Babylon owns the frame loop" observable without
-        putting frame state into React. It must never be announced.
-      */}
       <p
         ref={diagnosticsRef}
         className="ps-visually-hidden"
@@ -198,7 +197,6 @@ export function probeCapabilities(): CapabilityReport {
 }
 
 function createBrowserProbeFromEnvironment() {
-  // Kept behind a function so importing this module never touches the DOM.
   return {
     hasWebGPU: () => typeof navigator !== "undefined" && "gpu" in navigator,
     probeWebGL2: () => {
@@ -207,7 +205,10 @@ function createBrowserProbeFromEnvironment() {
       const context = canvas.getContext("webgl2");
       if (!context) return { supported: false, maxTextureSize: null };
       const maxTextureSize = context.getParameter(context.MAX_TEXTURE_SIZE);
-      return { supported: true, maxTextureSize: typeof maxTextureSize === "number" ? maxTextureSize : null };
+      return {
+        supported: true,
+        maxTextureSize: typeof maxTextureSize === "number" ? maxTextureSize : null,
+      };
     },
   };
 }

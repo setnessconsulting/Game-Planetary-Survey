@@ -1,0 +1,33 @@
+.lede {
+  color: var(--ps-text-muted);
+  font-size: var(--ps-text-sm);
+  margin-bottom: var(--ps-space-3);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ps-text-sm);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--ps-space-2) var(--ps-space-3);
+  border-bottom: 1px solid var(--ps-border);
+  vertical-align: top;
+}
+
+.table thead th {
+  color: var(--ps-text-muted);
+  font-weight: 600;
+}
+
+.table tr[data-selected="true"] {
+  background: color-mix(in srgb, var(--ps-accent) 12%, transparent);
+}
+
+.table button {
+  min-height: var(--ps-control-height);
+  padding: 0 var(--ps-space-3);
+}

@@ -43,7 +43,13 @@ export {
   SOURCE_REGISTER_VERSION,
 } from "./provenance";
 export { PLANETARY_BODIES, SURVEY_BODY_IDS } from "./bodies";
-export { MISSIONS } from "./missions";
+export {
+  MISSIONS,
+  GUIDED_MISSION_ID,
+  RELIEF_MISSION_ID,
+  DISTANCE_MISSION_ID,
+  VARIANT_MISSION_ID,
+} from "./missions";
 export { SIMPLIFICATION_REGISTER } from "./simplifications";
 
 /**
